@@ -1,4 +1,6 @@
-<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=default"></script>
+<script type="text/javascript" charset="utf-8" src="
+https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML,
+https://vincenttam.github.io/javascripts/MathJaxLocal.js"></script>
 
 
 # FewRel: Few-Shot Relation Classification Dataset
@@ -9,14 +11,12 @@ EMNLP 2018
 
 [[paper]](https://github.com/thunlp/FewRel/blob/master/paper/fewrel.pdf) [[dataset]](#datasets) [[baseline code]](#baseline)
 
----
 
 ## Introduction
 
 We present a Few-Shot Relation Classification Dataset FewRel, consisting of 70, 000 sentences on 100 relations derived from Wikipedia and annotated by crowdworkers. The relation of each sentence is first recognized by distant supervision methods, and then filtered by crowdworkers. We adapt the most recent state-of-the-art few-shot learning methods for relation classification and conduct thorough evaluation of these methods. Empirical results show that even the most competitive few-shot learning models struggle on this task, especially as compared with humans. We also show that a range of different reasoning skills are needed to solve our task. These results indicate that few-shot relation classification remains an open problem and still requires further research. Our detailed analysis points multiple directions for future research.
 
 
----
 
 ## Task
 
@@ -91,7 +91,6 @@ Here we give an example (3 way 2 shot) in the form of the following table. This 
         </tr>
 </table>
 
----
 
 ## Datasets and Downloads
 
