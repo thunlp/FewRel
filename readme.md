@@ -24,27 +24,27 @@ We present a Few-Shot Relation Classification Dataset FewRel, consisting of 70, 
 
 
 ## Task
-<div style="width:100%;text-align:justify;"> 
-In few-shot relation classification, we intend to obtain a function $$F:(\mathcal{R}, \mathcal{S}, x)\mapsto y,$$ 
-Here $\mathcal{R}=\{r_1, \ldots,r_m\}$ defines the relations that the instances are classified into. 
-$\mathcal{S}$ is a support set including $n_i$ instances for each relation $r_i\in\mathcal{R}$.
 
-$$
-\mathcal{S}= \{(x_1^1, r_1), (x_1^2, r_1), \ldots,(x_1^{n_1}, r_1), \\
-\ldots, \\
-(x_m^1, r_m), (x_m^2, r_m), \ldots,(x_m^{n_m}, r_m) \}\\
-r_1, \ldots, r_m\ \in \mathcal{R} 
-$$
+In few-shot relation classification, we intend to obtain a function 
 
-Each instance $x_i^j$ is a sentence accompanied with a pair of entities. The query data $x$ is an unlabeled instance to classify, and $y\in\mathcal{R}$ is the prediction of $x$ given by $F$.
+<img src="http://latex.codecogs.com/gif.latex?F:(\mathcal{R}, \mathcal{S}, x)\mapsto y,\\\mathcal{S}=\{r_1, \ldots,r_m\}" />
 
-In recent research on few-shot learning, $N$ way $K$ shot setting is widely adopted. We follow this setting for the few-shot relation classification problem. To be exact, for $N$ way $K$ shot learning, there are 
-$$
-N=m=|\mathcal{R}|, K=n_1=\ldots=n_m
-$$
+Here <img src="http://latex.codecogs.com/gif.latex?\mathcal{R}" /> defines the relations that the instances are classified into. Here <img src="http://latex.codecogs.com/gif.latex?\mathcal{S}" /> is a support set including <img src="http://latex.codecogs.com/gif.latex?n_i" /> instances for each relation 
+<img src="http://latex.codecogs.com/gif.latex?r_i\in\mathcal{R}" />.
+
+<img src="http://latex.codecogs.com/gif.latex?\mathcal{S}= \\ \{(x_1^1, r_1), (x_1^2, r_1), \ldots,(x_1^{n_1}, r_1), \\ \ldots, \\(x_m^1, r_m), (x_m^2, r_m), \ldots,(x_m^{n_m}, r_m) \}\\ r_1, \ldots, r_m\ \in \mathcal{R}" />.
+
+
+
+
+
+Each instance <img src="http://latex.codecogs.com/gif.latex?x_i^j" /> is a sentence accompanied with a pair of entities. The query data <img src="http://latex.codecogs.com/gif.latex?x" /> is an unlabeled instance to classify, and <img src="http://latex.codecogs.com/gif.latex?y\in\mathcal{R}" /> is the prediction of <img src="http://latex.codecogs.com/gif.latex?x" /> given by <img src="http://latex.codecogs.com/gif.latex?F" />.
+
+In recent research on few-shot learning, <img src="http://latex.codecogs.com/gif.latex?N"/> way <img src="http://latex.codecogs.com/gif.latex?K"/> shot setting is widely adopted. We follow this setting for the few-shot relation classification problem. To be exact, for <img src="http://latex.codecogs.com/gif.latex?N"/> way <img src="http://latex.codecogs.com/gif.latex?K" /> shot learning, there are 
+
+<img src="http://latex.codecogs.com/gif.latex?N=m=|\mathcal{R}|, K=n_1=\ldots=n_m" />
 
 Here we give an example (3 way 2 shot) in the form of the following table. This task requires the models to learn parameters based on the supporting set, and then predict the relation of the query instance.
-</div>
 
 <table style="width:80%;">
         <tr>
