@@ -5,7 +5,9 @@ https://vincenttam.github.io/javascripts/MathJaxLocal.js"></script>
 
 # FewRel: Few-Shot Relation Classification Dataset
 
-[Xu Han](https://thucsthanxu13.github.io)\*, [Hao Zhu](http://zhuhao.me)\*, Pengfei Yu\*, Ziyuan Wang\*, Yuan Yao, [Zhiyuan Liu](http://nlp.csai.tsinghua.edu.cn/~lzy/), Maosong Sun (* the first four authors contribute equally.)
+[Xu Han](https://thucsthanxu13.github.io)\*, [Hao Zhu](http://zhuhao.me)\*, Pengfei Yu\*, Ziyuan Wang\*, Yuan Yao, [Zhiyuan Liu](http://nlp.csai.tsinghua.edu.cn/~lzy/), Maosong Sun
+
+ (* the first four authors contribute equally.)
 
 EMNLP 2018 
 
@@ -14,36 +16,34 @@ EMNLP 2018
 
 ## Introduction
 
+<div style="width:80%;text-align:justify;"> 
 We present a Few-Shot Relation Classification Dataset FewRel, consisting of 70, 000 sentences on 100 relations derived from Wikipedia and annotated by crowdworkers. The relation of each sentence is first recognized by distant supervision methods, and then filtered by crowdworkers. We adapt the most recent state-of-the-art few-shot learning methods for relation classification and conduct thorough evaluation of these methods. Empirical results show that even the most competitive few-shot learning models struggle on this task, especially as compared with humans. We also show that a range of different reasoning skills are needed to solve our task. These results indicate that few-shot relation classification remains an open problem and still requires further research. Our detailed analysis points multiple directions for future research.
+</div>
 
 
 
 ## Task
-
-
+<div style="width:80%;text-align:justify;"> 
 In few-shot relation classification, we intend to obtain a function $$F:(\mathcal{R}, \mathcal{S}, x)\mapsto y,$$ 
-Here \\(\mathcal{R}=\{r_1, \ldots,r_m\}\\)defines the relations that the instances are classified into. 
-\\(\mathcal{S}\\) is a support set including \\(n_i\\) instances for each relation \\(r_i\in\mathcal{R}\\).
-$$
-\begin{equation}
-\begin{aligned}
-\mathcal{S}= \\{(x_1^1, r_1), &(x_1^2, r_1), \ldots,(x_1^{n_1}, r_1),\\\\
-&\ldots,\\\\
-(x_m^1, r_m), &(x_m^2, r_m), \ldots,(x_m^{n_m}, r_m)
-\\}, \\\\
-r_1, & \ldots, r_m\ \in \mathcal{R} 
-\end{aligned}
-\end{equation}
-$$
-Each instance \\(x_i^j\\) is a sentence accompanied with a pair of entities. The query data \\(x\\) is an unlabeled instance to classify, and \\(y\in\mathcal{R}\\) is the prediction of \\(x\\) given by \\(F\\).
+Here $\mathcal{R}=\{r_1, \ldots,r_m\}$ defines the relations that the instances are classified into. 
+$\mathcal{S}$ is a support set including $n_i$ instances for each relation $r_i\in\mathcal{R}$.
 
-In recent research on few-shot learning, \\(N\\) way \\(K\\) shot setting is widely adopted. We follow this setting for the few-shot relation classification problem. To be exact, for \\(N\\) way \\(K\\) shot learning, there are 
+$$
+\mathcal{S}= \{(x_1^1, r_1), (x_1^2, r_1), \ldots,(x_1^{n_1}, r_1), \\
+\ldots, \\
+(x_m^1, r_m), (x_m^2, r_m), \ldots,(x_m^{n_m}, r_m) \}\\
+r_1, \ldots, r_m\ \in \mathcal{R} 
+$$
+
+Each instance $x_i^j$ is a sentence accompanied with a pair of entities. The query data $x$ is an unlabeled instance to classify, and $y\in\mathcal{R}$ is the prediction of $x$ given by $F$.
+
+In recent research on few-shot learning, $N$ way $K$ shot setting is widely adopted. We follow this setting for the few-shot relation classification problem. To be exact, for $N$ way $K$ shot learning, there are 
 $$
 N=m=|\mathcal{R}|, K=n_1=\ldots=n_m
 $$
 
 Here we give an example (3 way 2 shot) in the form of the following table. This task requires the models to learn parameters based on the supporting set, and then predict the relation of the query instance.
-
+</div>
 
 <table style="width:80%;">
         <tr>
@@ -111,10 +111,19 @@ Here we give an example (3 way 2 shot) in the form of the following table. This 
 ## Submit your models
 
 
-*	Once you have a built a model that works to your expectations on the dev set, you submit it to get official scores on the dev and a hidden test set. To preserve the integrity of test results, we do not release the test set to the public. Instead, we require you to submit your model so that we can run it on the test set for you. Submission methods coming soon!
+<div style="width:80%;text-align:justify;"> 
+Once you have a built a model that works to your expectations on the dev set, you submit it to get official scores on the dev and a hidden test set. To preserve the integrity of test results, we do not release the test set to the public. Instead, we require you to submit your model so that we can run it on the test set for you. Submission methods coming soon!
+</div>
 
 
-*	If you have questions about any part of the paper, submission, leaderboard, codes, data, please e-mail zhuhao15@mails.tsinghua.edu.cn.
+
+
+
+
+
+<div style="width:80%;text-align:justify;"> 
+If you have questions about any part of the paper, submission, leaderboard, codes, data, please e-mail zhuhao15@mails.tsinghua.edu.cn.
+</div>
 
 
 ## Citation
@@ -122,24 +131,22 @@ Here we give an example (3 way 2 shot) in the form of the following table. This 
 
 If you use the code, please cite the following paper:
 
-
-```
-@inproceedings{hao2018fewrel,
-               title={FewRel:A Large-Scale Supervised Few-shot Relation Classification Dataset with State-of-the-Art Evaluation},
-               author={Han, Xu and Zhu, Hao and Yu, Pengfei and Wang, Ziyun and Yao, Yuan and Liu, Zhiyuan and Sun, Maosong},
-               booktitle={EMNLP},
-               year={2018}
-}
-```
+<pre style="width:80%;"><code class="prettyprint lang- prettyprinted" style=""><span class="lit">@inproceedings</span><span class="pun">{</span><span class="pln">hao2018fewrel</span><span class="pun">,</span><span class="pln">
+               title</span><span class="pun">={</span><span class="typ">FewRel</span><span class="pun">:</span><span class="pln">A </span><span class="typ">Large</span><span class="pun">-</span><span class="typ">Scale</span><span class="pln"> </span><span class="typ">Supervised</span><span class="pln"> </span><span class="typ">Few</span><span class="pun">-</span><span class="pln">Shot </span><span class="typ">Relation</span><span class="pln"> </span><span class="typ">Classification</span><span class="pln"> </span><span class="typ">Dataset</span><span class="pln"> </span><span class="kwd">with</span><span class="pln"> </span><span class="typ">State</span><span class="pun">-</span><span class="pln">of</span><span class="pun">-</span><span class="pln">the</span><span class="pun">-</span><span class="typ">Art</span><span class="pln"> </span><span class="typ">Evaluation</span><span class="pun">},</span><span class="pln">
+               author</span><span class="pun">={</span><span class="typ">Han</span><span class="pun">,</span><span class="pln"> </span><span class="typ">Xu</span><span class="pln"> </span><span class="kwd">and</span><span class="pln"> </span><span class="typ">Zhu</span><span class="pun">,</span><span class="pln"> </span><span class="typ">Hao</span><span class="pln"> </span><span class="kwd">and</span><span class="pln"> </span><span class="typ">Yu</span><span class="pun">,</span><span class="pln"> </span><span class="typ">Pengfei</span><span class="pln"> </span><span class="kwd">and</span><span class="pln"> </span><span class="typ">Wang</span><span class="pun">,</span><span class="pln"> </span><span class="typ">Ziyun</span><span class="pln"> </span><span class="kwd">and</span><span class="pln"> </span><span class="typ">Yao</span><span class="pun">,</span><span class="pln"> </span><span class="typ">Yuan</span><span class="pln"> </span><span class="kwd">and</span><span class="pln"> </span><span class="typ">Liu</span><span class="pun">,</span><span class="pln"> </span><span class="typ">Zhiyuan</span><span class="pln"> </span><span class="kwd">and</span><span class="pln"> </span><span class="typ">Sun</span><span class="pun">,</span><span class="pln"> </span><span class="typ">Maosong</span><span class="pun">},</span><span class="pln">
+               booktitle</span><span class="pun">={</span><span class="pln">EMNLP</span><span class="pun">},</span><span class="pln">
+               year</span><span class="pun">={</span><span class="lit">2018</span><span class="pun">}</span><span class="pln">
+</span><span class="pun">}</span></code></pre>
 
 
 
 ## Contributions
 
 
+<div style="width:80%;text-align:justify;"> 
 Hao Zhu first proposed this problem and proposed the way to build the dataset and the baseline system; Ziyuan Wang built and maintained the crowdsourcing website; Yuan Yao helped download the original data and conducted preprocess; 
 Xu Han, Hao Zhu, Pengfei Yu and Ziyun Wang implemented baselines and wrote the paper together; Zhiyuan Liu provided thoughtful advice and funds through the whole project. The order of the first four authors are determined by dice rolling. 
-
+</div>
 
 
 
