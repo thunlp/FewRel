@@ -13,21 +13,44 @@ from torch.nn import functional as F
 
 class FewShotREModel(nn.Module):
     def __init__(self, sentence_encoder):
+        '''
+        sentence_encoder: Sentence encoder
+        
+        You need to set self.cost as your own loss function.
+        '''
         nn.Module.__init__(self)
         self.sentence_encoder = sentence_encoder
         self.cost = nn.CrossEntropyLoss()
     
     def forward(self, support, query, N, K, Q):
-        # Return logits, pred
+        '''
+        support: Inputs of the support set.
+        query: Inputs of the query set.
+        N: Num of classes
+        K: Num of instances for each class in the support set
+        Q: Num of instances for each class in the query set
+        return: logits, pred
+        '''
         raise NotImplementedError
 
     def loss(self, logits, label):
+        '''
+        logits: Logits with the size (..., class_num)
+        label: Label with whatever size. 
+        return: [Loss] (A single value)
+        '''
         label = label.view(-1)
-        N = logits.size(2)
+        N = logits.size(-1)
         logits = logits.view(-1, N)
         return self.cost(logits, label)
 
     def accuracy(self, pred, label):
+        '''
+        pred: Prediction results with whatever size
+        label: Label with whatever size
+        return: [Accuracy] (A single value)
+        '''
+        pred = pred.view(-1)
         label = label.view(-1)
         return torch.mean((pred==label).type(torch.FloatTensor))
 
@@ -45,6 +68,10 @@ class FewShotREFramework:
         self.test_data_loader = test_data_loader
     
     def __load_model__(self, ckpt):
+        '''
+        ckpt: Path of the checkpoint
+        return: Checkpoint dict
+        '''
         if os.path.isfile(ckpt):
             checkpoint = torch.load(ckpt)
             print("Successfully loaded checkpoint '%s'" % ckpt)
@@ -67,7 +94,25 @@ class FewShotREFramework:
               test_iter=3000,
               cuda=True,
               pretrain_model=None):
-        
+        '''
+        model: a FewShotREModel instance
+        model_name: Name of the model
+        B: Batch size
+        N: Num of classes for each batch
+        K: Num of instances for each class in the support set
+        Q: Num of instances for each class in the query set
+        ckpt_dir: Directory of checkpoints
+        test_result_dir: Directory of test results
+        learning_rate: Initial learning rate
+        lr_step_size: Decay learning rate every lr_step_size steps
+        weight_decay: Rate of decaying weight
+        train_iter: Num of iterations of training
+        val_iter: Num of iterations of validating
+        val_step: Validate every val_step steps
+        test_iter: Num of iterations of testing
+        cuda: Use CUDA or not
+        pretrain_model: Pre-trained checkpoint path
+        '''
         print("Start training...")
         
         # Init
@@ -75,7 +120,7 @@ class FewShotREFramework:
         optimizer = optim.SGD(parameters_to_optimize, learning_rate, weight_decay=weight_decay)
         scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=lr_step_size)
         if pretrain_model:
-            checkpoint = self.__load_model__(ckpt)
+            checkpoint = self.__load_model__(pretrain_model)
             model.load_state_dict(checkpoint['state_dict'])
             start_iter = checkpoint['iter'] + 1
         else:
@@ -134,7 +179,16 @@ class FewShotREFramework:
             B, N, K, Q,
             eval_iter,
             ckpt=None): 
-
+        '''
+        model: a FewShotREModel instance
+        B: Batch size
+        N: Num of classes for each batch
+        K: Num of instances for each class in the support set
+        Q: Num of instances for each class in the query set
+        eval_iter: Num of iterations
+        ckpt: Checkpoint path. Set as None if using current model parameters.
+        return: Accuracy
+        '''
         print("")
         model.eval()
         if ckpt is None:

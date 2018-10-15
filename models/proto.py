@@ -28,18 +28,18 @@ class Proto(fewshot_re_kit.framework.FewShotREModel):
         K: Num of instances for each class in the support set
         Q: Num of instances for each class in the query set
         '''
-        support = self.sentence_encoder(support)
-        query = self.sentence_encoder(query)
+        support = self.sentence_encoder(support) # (B * N * K, D), where D is the hidden size
+        query = self.sentence_encoder(query) # (B * N * Q, D)
         support = self.drop(support)
         query = self.drop(query)
-        support = support.view(-1, N, K, self.hidden_size)
-        query = query.view(-1, N * Q, self.hidden_size)
+        support = support.view(-1, N, K, self.hidden_size) # (B, N, K, D)
+        query = query.view(-1, N * Q, self.hidden_size) # (B, N * Q, D)
 
-        B = support.size(0)
-        NQ = query.size(1)
+        B = support.size(0) # Batch size
+        NQ = query.size(1) # Num of instances for each batch in the query set
          
         # Prototypical Networks 
-        support = torch.mean(support, 2)
+        support = torch.mean(support, 2) # Calculate prototype for each class
         logits = -self.__batch_dist__(support, query)
         _, pred = torch.max(logits.view(-1, N), 1)
         return logits, pred
