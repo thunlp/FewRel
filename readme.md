@@ -9,7 +9,7 @@ More info at http://zhuhao.me/fewrel .
 ## Citing
 If you used our data, toolkits or baseline models, please kindly cite our paper:
 ```
-@inproceedings{hao2018fewrel,
+@inproceedings{han2018fewrel,
                title={FewRel:A Large-Scale Supervised Few-Shot Relation Classification Dataset with State-of-the-Art Evaluation},
                author={Han, Xu and Zhu, Hao and Yu, Pengfei and Wang, Ziyun and Yao, Yuan and Liu, Zhiyuan and Sun, Maosong},
                booktitle={EMNLP},
