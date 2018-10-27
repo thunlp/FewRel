@@ -91,7 +91,7 @@ class AttentionBlock(nn.Module):
     def dim(self):
         return self._dim
 
-class SNAIL(nn.Module):
+class SNAIL(fewshot_re_kit.framework.FewShotREModel):
     
     def __init__(self, sentence_encoder, N, K, hidden_size=230):
         '''
@@ -102,35 +102,36 @@ class SNAIL(nn.Module):
         self.hidden_size = hidden_size
         self.drop = nn.Dropout()
         self.seq_len = N * K + 1
-        self.att0 = AttentionBlock(hidden_size, 64, 32, seq_len)
-        self.tc1 = TCBlock(self.att0.dim, 128, seq_len)
-        self.att1 = AttentionBlock(self.tc1.dim, 256, 128, seq_len)
-        self.tc2 = TCBlock(self.att1.dim, 128, seq_len)
-        self.att2 = AttentionBlock(self.tc2.dim, 512, 256, seq_len)
+        self.att0 = AttentionBlock(hidden_size, 64, 32, self.seq_len)
+        self.tc1 = TCBlock(self.att0.dim, 128, self.seq_len)
+        self.att1 = AttentionBlock(self.tc1.dim, 256, 128, self.seq_len)
+        self.tc2 = TCBlock(self.att1.dim, 128, self.seq_len)
+        self.att2 = AttentionBlock(self.tc2.dim, 512, 256, self.seq_len)
         self.disc = nn.Linear(self.att2.dim, N, bias=False)
         self.bn1 = nn.BatchNorm2d(self.tc1.dim)
         self.bn2 = nn.BatchNorm2d(self.tc2.dim)
 
-    def forward(self, minibatch, current_seq_len):
+    def forward(self, support, query, N, K, Q):
         support = self.sentence_encoder(support) # (B * N * K, D), where D is the hidden size
         query = self.sentence_encoder(query) # (B * N * Q, D)
-        support = support.drop()
-        query = query.drop()
+        # support = self.drop(support)
+        # query = self.drop(query)
         support = support.view(-1, N, K, self.hidden_size) # (B, N, K, D)
         query = query.view(-1, N * Q, self.hidden_size) # (B, N * Q, D)
         B = support.size(0) # Batch size
         NQ = query.size(1) # Num of instances for each batch in the query set
 
-        support = support.unsqueeze(1).expand(-1, NQ, -1, -1, -1).contiguous().view(-1, N * K, D) # (B * NQ, N * K, D)
-        query = query.view(-1, 1, D) # (B * NQ, 1, D)
-        minibatch = tf.cat([support, query], 1)
+        support = support.unsqueeze(1).expand(-1, NQ, -1, -1, -1).contiguous().view(-1, N * K, self.hidden_size) # (B * NQ, N * K, D)
+        query = query.view(-1, 1, self.hidden_size) # (B * NQ, 1, D)
+        minibatch = torch.cat([support, query], 1)
 
         x = self.att0(minibatch, self.seq_len).transpose(1, 2)
-        x = self.bn1(self.tc1(x)).transpose(1, 2)
-        #x = self.tc1(x).transpose(1, 2)
+        #x = self.bn1(x).transpose(1, 2)
+        # x = self.bn1(self.tc1(x)).transpose(1, 2)
+        x = self.tc1(x).transpose(1, 2)
         x = self.att1(x, self.seq_len).transpose(1, 2)
-        x = self.bn2(self.tc2(x)).transpose(1, 2)
-        #x = self.tc2(x).transpose(1, 2)
+        # x = self.bn2(self.tc2(x)).transpose(1, 2)
+        x = self.tc2(x).transpose(1, 2)
         x = self.att2(x, self.seq_len)
         x = x[:, -1, :]
         logits = self.disc(x)
