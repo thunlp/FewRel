@@ -1,11 +1,10 @@
-import tensorflow as tf
 import os
 import sklearn.metrics
 import numpy as np
 import sys
 import time
-import sentence_encoder
-import data_loader
+from . import sentence_encoder
+from . import data_loader
 import torch
 from torch import autograd, optim, nn
 from torch.autograd import Variable

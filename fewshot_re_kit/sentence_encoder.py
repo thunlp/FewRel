@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 from torch import optim
-import network
+from . import network
 
 class CNNSentenceEncoder(nn.Module):
 
