@@ -4,6 +4,7 @@ import multiprocessing
 import numpy as np
 import random
 import torch
+from torch.autograd import Variable
 
 class FileDataLoader:
     def next_batch(self, B, N, K, Q):
@@ -267,15 +268,15 @@ class JSONFileDataLoader(FileDataLoader):
             query['pos2'].append(current_query['pos2'])
             query['mask'].append(current_query['mask'])
             label.append(current_label)
-        support['word'] = torch.from_numpy(np.stack(support['word'], 0)).long().view(-1, self.max_length) 
-        support['pos1'] = torch.from_numpy(np.stack(support['pos1'], 0)).long().view(-1, self.max_length) 
-        support['pos2'] = torch.from_numpy(np.stack(support['pos2'], 0)).long().view(-1, self.max_length) 
-        support['mask'] = torch.from_numpy(np.stack(support['mask'], 0)).long().view(-1, self.max_length) 
-        query['word'] = torch.from_numpy(np.stack(query['word'], 0)).long().view(-1, self.max_length) 
-        query['pos1'] = torch.from_numpy(np.stack(query['pos1'], 0)).long().view(-1, self.max_length) 
-        query['pos2'] = torch.from_numpy(np.stack(query['pos2'], 0)).long().view(-1, self.max_length) 
-        query['mask'] = torch.from_numpy(np.stack(query['mask'], 0)).long().view(-1, self.max_length) 
-        label = torch.from_numpy(np.stack(label, 0).astype(np.int64)).long()
+        support['word'] = Variable(torch.from_numpy(np.stack(support['word'], 0)).long().view(-1, self.max_length))
+        support['pos1'] = Variable(torch.from_numpy(np.stack(support['pos1'], 0)).long().view(-1, self.max_length)) 
+        support['pos2'] = Variable(torch.from_numpy(np.stack(support['pos2'], 0)).long().view(-1, self.max_length)) 
+        support['mask'] = Variable(torch.from_numpy(np.stack(support['mask'], 0)).long().view(-1, self.max_length)) 
+        query['word'] = Variable(torch.from_numpy(np.stack(query['word'], 0)).long().view(-1, self.max_length)) 
+        query['pos1'] = Variable(torch.from_numpy(np.stack(query['pos1'], 0)).long().view(-1, self.max_length)) 
+        query['pos2'] = Variable(torch.from_numpy(np.stack(query['pos2'], 0)).long().view(-1, self.max_length)) 
+        query['mask'] = Variable(torch.from_numpy(np.stack(query['mask'], 0)).long().view(-1, self.max_length)) 
+        label = Variable(torch.from_numpy(np.stack(label, 0).astype(np.int64)).long())
         
         # To cuda
         if self.cuda:
