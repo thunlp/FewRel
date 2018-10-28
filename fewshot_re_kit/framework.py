@@ -73,6 +73,15 @@ class FewShotREFramework:
             return checkpoint
         else:
             raise Exception("No checkpoint found at '%s'" % ckpt)
+    
+    def item(self, x):
+        '''
+        PyTorch before and after 0.4
+        '''
+        if int(torch.__version__.split('.')[1]) < 4:
+            return x[0]
+        else:
+            return x.item()
 
     def train(self,
               model,
@@ -141,11 +150,10 @@ class FewShotREFramework:
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-
-            iter_loss += loss.data.item()
-            iter_right += right.data.item()
+            
+            iter_loss += self.item(loss.data)
+            iter_right += self.item(right.data)
             iter_sample += 1
-
             sys.stdout.write('step: {0:4} | loss: {1:2.6f}, accuracy: {2:3.2f}%'.format(it + 1, iter_loss / iter_sample, 100 * iter_right / iter_sample) +'\r')
             sys.stdout.flush()
 
@@ -200,7 +208,7 @@ class FewShotREFramework:
             support, query, label = eval_dataset.next_batch(B, N, K, Q)
             logits, pred = model(support, query, N, K, Q)
             right = model.accuracy(pred, label)
-            iter_right += right.data.item()
+            iter_right += self.item(right.data)
             iter_sample += 1
 
             sys.stdout.write('[EVAL] step: {0:4} | accuracy: {1:3.2f}%'.format(it + 1, 100 * iter_right / iter_sample) +'\r')

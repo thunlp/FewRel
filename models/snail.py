@@ -127,11 +127,11 @@ class SNAIL(fewshot_re_kit.framework.FewShotREModel):
 
         x = self.att0(minibatch, self.seq_len).transpose(1, 2)
         #x = self.bn1(x).transpose(1, 2)
-        # x = self.bn1(self.tc1(x)).transpose(1, 2)
-        x = self.tc1(x).transpose(1, 2)
+        x = self.bn1(self.tc1(x)).transpose(1, 2)
+        #x = self.tc1(x).transpose(1, 2)
         x = self.att1(x, self.seq_len).transpose(1, 2)
-        # x = self.bn2(self.tc2(x)).transpose(1, 2)
-        x = self.tc2(x).transpose(1, 2)
+        x = self.bn2(self.tc2(x)).transpose(1, 2)
+        #x = self.tc2(x).transpose(1, 2)
         x = self.att2(x, self.seq_len)
         x = x[:, -1, :]
         logits = self.disc(x)
