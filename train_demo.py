@@ -36,6 +36,7 @@ elif model_name == 'gnn':
     model = GNN(sentence_encoder, N)
     framework.train(model, model_name, 2, N, N, K, 1, learning_rate=1e-3, weight_decay=0, optimizer=optim.Adam)
 elif model_name == 'snail':
+    print("HINT: SNAIL works only in PyTorch 0.3.1")
     model = SNAIL(sentence_encoder, N, K)
     framework.train(model, model_name, 25, N, N, K, 1, learning_rate=1e-2, weight_decay=0, optimizer=optim.SGD)
 else:
