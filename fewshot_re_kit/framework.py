@@ -1,11 +1,10 @@
-import tensorflow as tf
 import os
 import sklearn.metrics
 import numpy as np
 import sys
 import time
-import sentence_encoder
-import data_loader
+from . import sentence_encoder
+from . import data_loader
 import torch
 from torch import autograd, optim, nn
 from torch.autograd import Variable
@@ -39,10 +38,8 @@ class FewShotREModel(nn.Module):
         label: Label with whatever size. 
         return: [Loss] (A single value)
         '''
-        label = label.view(-1)
         N = logits.size(-1)
-        logits = logits.view(-1, N)
-        return self.cost(logits, label)
+        return self.cost(logits.view(-1, N), label.view(-1))
 
     def accuracy(self, pred, label):
         '''
@@ -50,9 +47,7 @@ class FewShotREModel(nn.Module):
         label: Label with whatever size
         return: [Accuracy] (A single value)
         '''
-        pred = pred.view(-1)
-        label = label.view(-1)
-        return torch.mean((pred==label).type(torch.FloatTensor))
+        return torch.mean((pred.view(-1) == label.view(-1)).type(torch.FloatTensor))
 
     
 class FewShotREFramework:
@@ -78,22 +73,32 @@ class FewShotREFramework:
             return checkpoint
         else:
             raise Exception("No checkpoint found at '%s'" % ckpt)
+    
+    def item(self, x):
+        '''
+        PyTorch before and after 0.4
+        '''
+        if int(torch.__version__.split('.')[1]) < 4:
+            return x[0]
+        else:
+            return x.item()
 
     def train(self,
               model,
               model_name,
-              B, N, K, Q,
+              B, N_for_train, N_for_eval, K, Q,
               ckpt_dir='./checkpoint',
               test_result_dir='./test_result',
               learning_rate=1e-1,
               lr_step_size=20000,
               weight_decay=1e-5,
               train_iter=30000,
-              val_iter=3000,
-              val_step=1000,
+              val_iter=1000,
+              val_step=2000,
               test_iter=3000,
               cuda=True,
-              pretrain_model=None):
+              pretrain_model=None,
+              optimizer=optim.SGD):
         '''
         model: a FewShotREModel instance
         model_name: Name of the model
@@ -117,7 +122,7 @@ class FewShotREFramework:
         
         # Init
         parameters_to_optimize = filter(lambda x:x.requires_grad, model.parameters())
-        optimizer = optim.SGD(parameters_to_optimize, learning_rate, weight_decay=weight_decay)
+        optimizer = optimizer(parameters_to_optimize, learning_rate, weight_decay=weight_decay)
         scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=lr_step_size)
         if pretrain_model:
             checkpoint = self.__load_model__(pretrain_model)
@@ -138,18 +143,17 @@ class FewShotREFramework:
         iter_sample = 0.0
         for it in range(start_iter, start_iter + train_iter):
             scheduler.step()
-            support, query, label = self.train_data_loader.next_batch(B, N, K, Q)
-            logits, pred = model(support, query, N, K, Q)
+            support, query, label = self.train_data_loader.next_batch(B, N_for_train, K, Q)
+            logits, pred = model(support, query, N_for_train, K, Q)
             loss = model.loss(logits, label)
             right = model.accuracy(pred, label)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-
-            iter_loss += loss.data.item()
-            iter_right += right.data.item()
+            
+            iter_loss += self.item(loss.data)
+            iter_right += self.item(right.data)
             iter_sample += 1
-
             sys.stdout.write('step: {0:4} | loss: {1:2.6f}, accuracy: {2:3.2f}%'.format(it + 1, iter_loss / iter_sample, 100 * iter_right / iter_sample) +'\r')
             sys.stdout.flush()
 
@@ -159,7 +163,7 @@ class FewShotREFramework:
                 iter_sample = 0.
 
             if (it + 1) % val_step == 0:
-                acc = self.eval(model, B, N, K, Q, val_iter)
+                acc = self.eval(model, B, N_for_eval, K, Q, val_iter)
                 model.train()
                 if acc > best_acc:
                     print('Best checkpoint')
@@ -171,7 +175,7 @@ class FewShotREFramework:
                 
         print("\n####################\n")
         print("Finish training " + model_name)
-        test_acc = self.eval(model, B, N, K, Q, test_iter, ckpt=os.path.join(ckpt_dir, model_name + '.pth.tar'))
+        test_acc = self.eval(model, B, N_for_eval, K, Q, test_iter, ckpt=os.path.join(ckpt_dir, model_name + '.pth.tar'))
         print("Test accuracy: {}".format(test_acc))
 
     def eval(self,
@@ -204,7 +208,7 @@ class FewShotREFramework:
             support, query, label = eval_dataset.next_batch(B, N, K, Q)
             logits, pred = model(support, query, N, K, Q)
             right = model.accuracy(pred, label)
-            iter_right += right.data.item()
+            iter_right += self.item(right.data)
             iter_sample += 1
 
             sys.stdout.write('[EVAL] step: {0:4} | accuracy: {1:3.2f}%'.format(it + 1, 100 * iter_right / iter_sample) +'\r')
