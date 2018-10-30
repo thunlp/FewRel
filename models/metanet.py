@@ -1,24 +1,135 @@
 import sys
 sys.path.append('..')
 import fewshot_re_kit
+from fewshot_re_kit.network.embedding import Embedding
+from fewshot_re_kit.network.encoder import Encoder
 import torch
 from torch import autograd, optim, nn
 from torch.autograd import Variable
 from torch.nn import functional as F
+import numpy as np
+
+def log_and_sign(inputs, k=5):
+    eps = 1e-7
+    log = torch.log(torch.abs(inputs) + eps) / k
+    log[x < -1.0] = -1.0 
+    sign = log * np.exp(k)
+    sign[x < -1.0] = -1.0
+    sign[x > 1.0] = 1.0
+    return torch.cat([log, sign], 1)
+
+class LearnerForAttention(nn.Module):
+
+    def __init__(self):
+        nn.Module.__init__(self)
+        self.conv_lstm = nn.LSTM(2, 20)
+        self.conv_fc = nn.Linear(20, 1) 
+        self.fc_lstm = nn.LSTM(2, 20)
+        self.fc_fc = nn.Linear(20, 1) 
+
+    def forward(self, inputs, is_conv):
+        size = inputs.size()
+        x = inputs.view((-1, 1))
+        x = log_and_sign(x) # (-1, 2)
+
+        #### NO BACKPROP
+        x = Variable(x, requires_grad=False)
+        #### 
+        
+        if is_conv:
+            x = self.conv_lstm(x)
+            x = self.fc(x)
+        else:
+            x = self.fc_lstm(x)
+            x = self.fc_fc(x)
+        x = x.view(size)
+        return x
+
+class LearnerForBasic(nn.Module):
+
+    def __init__(self):
+        nn.Module.__init__(self)
+        self.conv_fc1 = nn.Linear(2, 20)
+        self.conv_fc2 = nn.Linear(20, 20)
+        self.conv_fc3 = nn.Linear(20, 1)
+        self.fc_fc1 = nn.Linear(2, 20)
+        self.fc_fc2 = nn.Linear(20, 20)
+        self.fc_fc3 = nn.Linear(20, 1)
+
+
+    def forward(self, inputs, is_conv):
+        size = inputs.size()
+        x = inputs.view((-1, 1))
+        x = log_and_sign(x) # (-1, 2)
+
+        #### NO BACKPROP
+        x = Variable(x, requires_grad=False)
+        ####
+        
+        if is_conv:
+            x = self.conv_fc1(x)
+            x = self.conv_fc2(x)
+            x = self.conv_fc3(x)
+        else:
+            x = self.fc_fc1(x)
+            x = self.fc_fc2(x)
+            x = self.fc_fc3(x)
+        return x
 
 class MetaNet(fewshot_re_kit.framework.FewShotREModel):
     
-    def __init__(self, sentence_encoder, hidden_size=230):
-        fewshot_re_kit.framework.FewShotREModel.__init__(self, sentence_encoder)
+    def __init__(self, N, K, word_vec_mat, max_length, hidden_size=230):
+        '''
+        N: num of classes
+        K: num of instances for each class
+        word_vec_mat, max_length, hidden_size: same as sentence_encoder
+        '''
+        fewshot_re_kit.framework.FewShotREModel.__init__(self, None)
+        self.max_length = max_length
         self.hidden_size = hidden_size
-        self.fc = nn.Linear(hidden_size, hidden_size)
-        self.drop = nn.Dropout()
+        self.N = N
+        self.K = K
+        
+        self.embedding = Embedding(word_vec_mat, max_length, word_embedding_dim=50, pos_embedding_dim=5)
+        self.basic_encoder = Encoder(max_length, word_embedding_dim=50, pos_embedding_dim=5, hidden_size=hidden_size)
+        self.basic_fast_encoder = Encoder(max_length, word_embedding_dim=50, pos_embedding_dim=5, hidden_size=hidden_size)
+        self.attention_encoder = Encoder(max_length, word_embedding_dim=50, pos_embedding_dim=5, hidden_size=hidden_size)
+        self.attention_fast_encoder = Encoder(max_length, word_embedding_dim=50, pos_embedding_dim=5, hidden_size=hidden_size)
 
-    def __dist__(self, x, y, dim):
-        return (torch.pow(x - y, 2)).sum(dim)
+        self.basic_fc = nn.Linear(hidden_size, N)
+        self.attention_fc = nn.Linear(hidden_size, N)
+        self.basic_fast_fc = nn.Linear(hidden_size, N)
+        self.attention_fast_fc = nn.Linear(hidden_size, N)
 
-    def __batch_dist__(self, S, Q):
-        return self.__dist__(S.unsqueeze(1), Q.unsqueeze(2), 3)
+        self.learner_attention = LearnerForAttention()
+        self.learner_basic = LearnerForBasic()
+
+    def basic_emb(self, inputs, size, use_fast=False):
+        x = self.embedding(inputs)
+        output = self.basic_encoder(x)
+        if use_fast:
+            output += self.basic_fast_encoder(x)
+        return output.view(size)
+    
+    def attention_emb(self, inputs, size, use_fast=False):
+        x = self.embedding(inputs)
+        print(x.size())
+        output = self.attention_encoder(x)
+        if use_fast:
+            self.attention_fast_encoder(x)
+        return output.view(size)
+
+    def attention_score(self, s_att, q_att):
+        '''
+        s_att: (B, N, K, D)
+        q_att: (B, NQ, D)
+        '''
+        s_att = s_att.view(s_att.size(0), s_att.size(1) * s.att.size(2), s_att.size(3)) # (B, N * K, D)
+        s_att = s_att.unsqueeze(1) # (B, 1, N * K, D)
+        q_att = q_att.unsqueeze(2) # (B, NQ, 1, D)
+        cos = F.cosine_similarity(s_att, q_att, dim=-1) # (B, NQ, N * K)
+        score = F.softmax(cos, -1) # (B, NQ, N * K)
+        return score
 
     def forward(self, support, query, N, K, Q):
         '''
@@ -28,19 +139,65 @@ class MetaNet(fewshot_re_kit.framework.FewShotREModel):
         K: Num of instances for each class in the support set
         Q: Num of instances for each class in the query set
         '''
-        support = self.sentence_encoder(support) # (B * N * K, D), where D is the hidden size
-        query = self.sentence_encoder(query) # (B * N * Q, D)
-        support = self.drop(support)
-        query = self.drop(query)
-        support = support.view(-1, N, K, self.hidden_size) # (B, N, K, D)
-        query = query.view(-1, N * Q, self.hidden_size) # (B, N * Q, D)
+        
 
-        B = support.size(0) # Batch size
-        NQ = query.size(1) # Num of instances for each batch in the query set
-         
-        # Prototypical Networks 
-        support = torch.mean(support, 2) # Calculate prototype for each class
-        logits = -self.__batch_dist__(support, query)
+        # learn fast parameters for attention encoder
+        s = self.attention_emb(support, (-1, N, K, self.hidden_size))
+        logits = self.attention_fc(s) # (B, N, K, N)
+
+        B = s.size(0)
+        NQ = N * Q
+        assert(B == 1)
+
+        self.embedding.zero_grad()
+        self.attention_encoder.zero_grad()
+        tmp_label = Variable(torch.tensor([[x] * K for x in range(N)] * B, dtype=torch.long).cuda())
+        loss = self.cost(logits.view(-1, N), tmp_label.view(-1))
+        loss.backward()
+            
+        grad_conv = self.attention_encoder.conv.weight.grad
+        grad_fc = self.attention_fc.weight.grad
+
+        self.attention_fast_encoder.conv.weight.data.copy_(self.learner_attention(grad_conv, is_conv=True))
+        self.attention_fast_fc.weight.data.copy_(self.learner_attention(grad_fc, is_conv=False))
+        
+        # learn fast parameters for basic encoder (each class)
+        s = self.basic_emb(support, (-1, N, K, self.hidden_size))
+        logits = self.basic_fc(s) # (B, N, K, N)
+        basic_fast_conv_params = []
+        basic_fast_fc_params = []
+       
+        for i in range(N):
+            for j in range(K):
+                self.embedding.zero_grad()
+                self.basic_encoder.zero_grad()
+                tmp_label = Variable(torch.tensor([i], dtype=torch.long).cuda())
+                loss = self.cost(logits[:, i].view(-1, N), tmp_label.view(-1))
+                loss.backward()
+
+                grad_conv = self.basic_encoder.conv.weight.grad
+                grad_fc = self.basic_fc.weight.grad
+
+                basic_fast_conv_params.append(self.learner_basic(grad_conv, is_conv=True))
+                basic_fast_fc_params.append(self.learner_basic(grad_fc, is_conv=False))
+        basic_fast_conv_params = torch.stack(basic_fast_conv_params, 0) # (N * K, conv_weight_size)
+        basic_fast_fc_params = torch.stack(basic_fast_fc_params, 0) # (N * K, fc_weight_size)
+
+        # final
+        self.zero_grad()
+        s_att = self.attention_emb(support, (-1, N, K, self.hidden_size), use_fast=True)
+        q_att = self.attention_emb(query, (-1, NQ, self.hidden_size), use_fast=True)
+        score = self.attention_score(s_att, q_att).squeeze(0) # assume B = 1, (NQ, N * K)
+        final_fast_conv_param = torch.matmul(score, basic_fast_conv_params) # (NQ, conv_weight_size)
+        final_fast_fc_param = torch.matmul(score, basic_fast_fc_params) # (NQ, fc_weight_size)
+        stack_logits = []
+        for i in range(NQ):
+            self.basic_fast_encoder.conv.weight.data.copy_(final_fast_conv_param[i])
+            self.basic_fast_fc.weight.data.copy_(final_fast_fc_param[i])
+            q = self.basic_emb(query, (-1, NQ, self.hidden_size), use_fast=True)
+            logits = self.basic_fc(q) + self.basic_fast_fc(q)
+            stack_logits.append(logits)
+        logits = torch.stack(stack_logits, 0)
         _, pred = torch.max(logits.view(-1, N), 1)
         return logits, pred
     
