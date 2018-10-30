@@ -42,7 +42,7 @@ elif model_name == 'snail':
     framework.train(model, model_name, 25, N, N, K, 1, learning_rate=1e-2, weight_decay=0, optimizer=optim.SGD)
 elif model_name == 'metanet':
     model = MetaNet(N, K, train_data_loader.word_vec_mat, max_length)
-    framework.train(model, model_name, 1, N, N, K, 1, learning_rate=1e-3, weight_decay=0, optimizer=optim.Adam)
+    framework.train(model, model_name, 1, N, N, K, 1, learning_rate=1e-5, weight_decay=0, optimizer=optim.Adam)
 else:
     raise NotImplementedError
 

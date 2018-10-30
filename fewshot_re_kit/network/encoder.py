@@ -25,14 +25,14 @@ class Encoder(nn.Module):
         return self.cnn(inputs)
 
     def cnn(self, inputs):
-        x = self.conv(inputs.transpose_(1, 2))
+        x = self.conv(inputs.transpose(1, 2))
         x = F.relu(x)
         x = self.pool(x)
         return x.squeeze(2) # n x hidden_size
 
     def pcnn(self, inputs, mask):
-        x = self.conv(inputs.transpose_(1, 2)) # n x hidden x length
-        mask = 1 - self.mask_embedding(mask).transpose_(1, 2) # n x 3 x length
+        x = self.conv(inputs.transpose(1, 2)) # n x hidden x length
+        mask = 1 - self.mask_embedding(mask).transpose(1, 2) # n x 3 x length
         pool1 = self.pool(F.relu(x + self._minus * mask[:, 0:1, :]))
         pool2 = self.pool(F.relu(x + self._minus * mask[:, 1:2, :]))
         pool3 = self.pool(F.relu(x + self._minus * mask[:, 2:3, :]))
