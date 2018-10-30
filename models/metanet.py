@@ -9,7 +9,7 @@ from torch.autograd import Variable
 from torch.nn import functional as F
 import numpy as np
 
-def log_and_sign(inputs, k=5):
+def log_and_sign(inputs, k=7):
     eps = 1e-7
     log = torch.log(torch.abs(inputs) + eps) / k
     log[log < -1.0] = -1.0 
@@ -68,12 +68,12 @@ class LearnerForBasic(nn.Module):
         ####
         
         if is_conv:
-            x = self.conv_fc1(x)
-            x = self.conv_fc2(x)
+            x = F.relu(self.conv_fc1(x)) 
+            x = F.relu(self.conv_fc2(x))
             x = self.conv_fc3(x)
         else:
-            x = self.fc_fc1(x)
-            x = self.fc_fc2(x)
+            x = F.relu(self.fc_fc1(x)) 
+            x = F.relu(self.fc_fc2(x))
             x = self.fc_fc3(x)
         return x.view(size)
 
@@ -92,31 +92,34 @@ class MetaNet(fewshot_re_kit.framework.FewShotREModel):
         self.K = K
         
         self.embedding = Embedding(word_vec_mat, max_length, word_embedding_dim=50, pos_embedding_dim=5)
+
         self.basic_encoder = Encoder(max_length, word_embedding_dim=50, pos_embedding_dim=5, hidden_size=hidden_size)
-        self.basic_fast_encoder = Encoder(max_length, word_embedding_dim=50, pos_embedding_dim=5, hidden_size=hidden_size)
         self.attention_encoder = Encoder(max_length, word_embedding_dim=50, pos_embedding_dim=5, hidden_size=hidden_size)
-        self.attention_fast_encoder = Encoder(max_length, word_embedding_dim=50, pos_embedding_dim=5, hidden_size=hidden_size)
 
-        self.basic_fc = nn.Linear(hidden_size, N)
-        self.attention_fc = nn.Linear(hidden_size, N)
-        self.basic_fast_fc = nn.Linear(hidden_size, N)
-        self.attention_fast_fc = nn.Linear(hidden_size, N)
+        self.basic_fast_conv_W = None
+        self.attention_fast_conv_W = None
 
-        self.learner_attention = LearnerForAttention()
+        self.basic_fc = nn.Linear(hidden_size, N, bias=False)
+        self.attention_fc = nn.Linear(hidden_size, N, bias=False)
+
+        self.basic_fast_fc_W = None
+        self.attention_fast_fc_W = None
+
         self.learner_basic = LearnerForBasic()
+        self.learner_attention = LearnerForAttention()
 
     def basic_emb(self, inputs, size, use_fast=False):
         x = self.embedding(inputs)
         output = self.basic_encoder(x)
         if use_fast:
-            output += self.basic_fast_encoder(x)
+            output += F.relu(F.conv1d(x.transpose(-1, -2), self.basic_fast_conv_W, padding=1)).max(-1)[0]
         return output.view(size)
     
     def attention_emb(self, inputs, size, use_fast=False):
         x = self.embedding(inputs)
         output = self.attention_encoder(x)
         if use_fast:
-            output += self.attention_fast_encoder(x)
+            output += F.relu(F.conv1d(x.transpose(-1, -2), self.attention_fast_conv_W, padding=1)).max(-1)[0]
         return output.view(size)
 
     def attention_score(self, s_att, q_att):
@@ -139,7 +142,6 @@ class MetaNet(fewshot_re_kit.framework.FewShotREModel):
         K: Num of instances for each class in the support set
         Q: Num of instances for each class in the query set
         '''
-        
 
         # learn fast parameters for attention encoder
         s = self.attention_emb(support, (-1, N, K, self.hidden_size))
@@ -149,8 +151,7 @@ class MetaNet(fewshot_re_kit.framework.FewShotREModel):
         NQ = N * Q
         assert(B == 1)
 
-        self.embedding.zero_grad()
-        self.attention_encoder.zero_grad()
+        self.zero_grad()
         tmp_label = Variable(torch.tensor([[x] * K for x in range(N)] * B, dtype=torch.long).cuda())
         loss = self.cost(logits.view(-1, N), tmp_label.view(-1))
         loss.backward(retain_graph=True)
@@ -158,19 +159,18 @@ class MetaNet(fewshot_re_kit.framework.FewShotREModel):
         grad_conv = self.attention_encoder.conv.weight.grad
         grad_fc = self.attention_fc.weight.grad
 
-        self.attention_fast_encoder.conv.weight.data.copy_(self.learner_attention(grad_conv, is_conv=True))
-        self.attention_fast_fc.weight.data.copy_(self.learner_attention(grad_fc, is_conv=False))
+        self.attention_fast_conv_W = self.learner_attention(grad_conv, is_conv=True)
+        self.attention_fast_fc_W = self.learner_attention(grad_fc, is_conv=False)
         
         # learn fast parameters for basic encoder (each class)
         s = self.basic_emb(support, (-1, N, K, self.hidden_size))
         logits = self.basic_fc(s) # (B, N, K, N)
+
         basic_fast_conv_params = []
         basic_fast_fc_params = []
-       
         for i in range(N):
             for j in range(K):
-                self.embedding.zero_grad()
-                self.basic_encoder.zero_grad()
+                self.zero_grad()
                 tmp_label = Variable(torch.tensor([i], dtype=torch.long).cuda())
                 loss = self.cost(logits[:, i, j].view(-1, N), tmp_label.view(-1))
                 loss.backward(retain_graph=True)
@@ -194,14 +194,12 @@ class MetaNet(fewshot_re_kit.framework.FewShotREModel):
         final_fast_fc_param = torch.matmul(score, basic_fast_fc_params.view(N * K, -1)) # (NQ, fc_weight_size)
         stack_logits = []
         for i in range(NQ):
-            self.basic_fast_encoder.conv.weight.data.copy_(final_fast_conv_param[i].view(size_conv_param))
-            self.basic_fast_fc.weight.data.copy_(final_fast_fc_param[i].view(size_fc_param))
+            self.basic_fast_conv_W = final_fast_conv_param[i].view(size_conv_param)
+            self.basic_fast_fc_W = final_fast_fc_param[i].view(size_fc_param)
             q = self.basic_emb({'word': query['word'][i:i+1], 'pos1': query['pos1'][i:i+1], 'pos2': query['pos2'][i:i+1], 'mask': query['mask'][i:i+1]}, (self.hidden_size), use_fast=True)
-            logits = self.basic_fc(q) + self.basic_fast_fc(q)
+            logits = self.basic_fc(q) + F.linear(q, self.basic_fast_fc_W) 
             stack_logits.append(logits)
         logits = torch.stack(stack_logits, 0)
+
         _, pred = torch.max(logits.view(-1, N), 1)
         return logits, pred
-    
-    
-    
