@@ -12,19 +12,19 @@ import numpy as np
 def log_and_sign(inputs, k=5):
     eps = 1e-7
     log = torch.log(torch.abs(inputs) + eps) / k
-    log[x < -1.0] = -1.0 
+    log[log < -1.0] = -1.0 
     sign = log * np.exp(k)
-    sign[x < -1.0] = -1.0
-    sign[x > 1.0] = 1.0
+    sign[sign < -1.0] = -1.0
+    sign[sign > 1.0] = 1.0
     return torch.cat([log, sign], 1)
 
 class LearnerForAttention(nn.Module):
 
     def __init__(self):
         nn.Module.__init__(self)
-        self.conv_lstm = nn.LSTM(2, 20)
+        self.conv_lstm = nn.LSTM(2, 20, batch_first=True)
         self.conv_fc = nn.Linear(20, 1) 
-        self.fc_lstm = nn.LSTM(2, 20)
+        self.fc_lstm = nn.LSTM(2, 20, batch_first=True)
         self.fc_fc = nn.Linear(20, 1) 
 
     def forward(self, inputs, is_conv):
@@ -33,17 +33,18 @@ class LearnerForAttention(nn.Module):
         x = log_and_sign(x) # (-1, 2)
 
         #### NO BACKPROP
-        x = Variable(x, requires_grad=False)
+        x = Variable(x, requires_grad=False).unsqueeze(0) # (1, param_size, 2)
         #### 
-        
+         
         if is_conv:
-            x = self.conv_lstm(x)
-            x = self.fc(x)
+            x, _ = self.conv_lstm(x) # (1, param_size, 1)
+            x = x.squeeze() 
+            x = self.conv_fc(x)
         else:
-            x = self.fc_lstm(x)
+            x, _ = self.fc_lstm(x) # (1, param_size, 1)
+            x = x.squeeze()
             x = self.fc_fc(x)
-        x = x.view(size)
-        return x
+        return x.view(size)
 
 class LearnerForBasic(nn.Module):
 
@@ -74,7 +75,7 @@ class LearnerForBasic(nn.Module):
             x = self.fc_fc1(x)
             x = self.fc_fc2(x)
             x = self.fc_fc3(x)
-        return x
+        return x.view(size)
 
 class MetaNet(fewshot_re_kit.framework.FewShotREModel):
     
@@ -113,10 +114,9 @@ class MetaNet(fewshot_re_kit.framework.FewShotREModel):
     
     def attention_emb(self, inputs, size, use_fast=False):
         x = self.embedding(inputs)
-        print(x.size())
         output = self.attention_encoder(x)
         if use_fast:
-            self.attention_fast_encoder(x)
+            output += self.attention_fast_encoder(x)
         return output.view(size)
 
     def attention_score(self, s_att, q_att):
@@ -124,7 +124,7 @@ class MetaNet(fewshot_re_kit.framework.FewShotREModel):
         s_att: (B, N, K, D)
         q_att: (B, NQ, D)
         '''
-        s_att = s_att.view(s_att.size(0), s_att.size(1) * s.att.size(2), s_att.size(3)) # (B, N * K, D)
+        s_att = s_att.view(s_att.size(0), s_att.size(1) * s_att.size(2), s_att.size(3)) # (B, N * K, D)
         s_att = s_att.unsqueeze(1) # (B, 1, N * K, D)
         q_att = q_att.unsqueeze(2) # (B, NQ, 1, D)
         cos = F.cosine_similarity(s_att, q_att, dim=-1) # (B, NQ, N * K)
@@ -153,7 +153,7 @@ class MetaNet(fewshot_re_kit.framework.FewShotREModel):
         self.attention_encoder.zero_grad()
         tmp_label = Variable(torch.tensor([[x] * K for x in range(N)] * B, dtype=torch.long).cuda())
         loss = self.cost(logits.view(-1, N), tmp_label.view(-1))
-        loss.backward()
+        loss.backward(retain_graph=True)
             
         grad_conv = self.attention_encoder.conv.weight.grad
         grad_fc = self.attention_fc.weight.grad
@@ -172,8 +172,8 @@ class MetaNet(fewshot_re_kit.framework.FewShotREModel):
                 self.embedding.zero_grad()
                 self.basic_encoder.zero_grad()
                 tmp_label = Variable(torch.tensor([i], dtype=torch.long).cuda())
-                loss = self.cost(logits[:, i].view(-1, N), tmp_label.view(-1))
-                loss.backward()
+                loss = self.cost(logits[:, i, j].view(-1, N), tmp_label.view(-1))
+                loss.backward(retain_graph=True)
 
                 grad_conv = self.basic_encoder.conv.weight.grad
                 grad_fc = self.basic_fc.weight.grad
@@ -188,13 +188,15 @@ class MetaNet(fewshot_re_kit.framework.FewShotREModel):
         s_att = self.attention_emb(support, (-1, N, K, self.hidden_size), use_fast=True)
         q_att = self.attention_emb(query, (-1, NQ, self.hidden_size), use_fast=True)
         score = self.attention_score(s_att, q_att).squeeze(0) # assume B = 1, (NQ, N * K)
-        final_fast_conv_param = torch.matmul(score, basic_fast_conv_params) # (NQ, conv_weight_size)
-        final_fast_fc_param = torch.matmul(score, basic_fast_fc_params) # (NQ, fc_weight_size)
+        size_conv_param = basic_fast_conv_params.size()[1:]
+        size_fc_param = basic_fast_fc_params.size()[1:]
+        final_fast_conv_param = torch.matmul(score, basic_fast_conv_params.view(N * K, -1)) # (NQ, conv_weight_size)
+        final_fast_fc_param = torch.matmul(score, basic_fast_fc_params.view(N * K, -1)) # (NQ, fc_weight_size)
         stack_logits = []
         for i in range(NQ):
-            self.basic_fast_encoder.conv.weight.data.copy_(final_fast_conv_param[i])
-            self.basic_fast_fc.weight.data.copy_(final_fast_fc_param[i])
-            q = self.basic_emb(query, (-1, NQ, self.hidden_size), use_fast=True)
+            self.basic_fast_encoder.conv.weight.data.copy_(final_fast_conv_param[i].view(size_conv_param))
+            self.basic_fast_fc.weight.data.copy_(final_fast_fc_param[i].view(size_fc_param))
+            q = self.basic_emb({'word': query['word'][i:i+1], 'pos1': query['pos1'][i:i+1], 'pos2': query['pos2'][i:i+1], 'mask': query['mask'][i:i+1]}, (self.hidden_size), use_fast=True)
             logits = self.basic_fc(q) + self.basic_fast_fc(q)
             stack_logits.append(logits)
         logits = torch.stack(stack_logits, 0)
