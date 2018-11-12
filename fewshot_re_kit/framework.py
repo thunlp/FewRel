@@ -149,6 +149,7 @@ class FewShotREFramework:
             right = model.accuracy(pred, label)
             optimizer.zero_grad()
             loss.backward()
+            nn.utils.clip_grad_norm(parameters_to_optimize, 10)
             optimizer.step()
             
             iter_loss += self.item(loss.data)
