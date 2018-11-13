@@ -32,7 +32,7 @@ sentence_encoder = CNNSentenceEncoder(train_data_loader.word_vec_mat, max_length
 
 if model_name == 'proto':
     model = Proto(sentence_encoder)
-    framework.train(model, model_name, 4, 20, N, K, 100)
+    framework.train(model, model_name, 4, 20, N, K, 5)
 elif model_name == 'gnn':
     model = GNN(sentence_encoder, N)
     framework.train(model, model_name, 2, N, N, K, 1, learning_rate=1e-3, weight_decay=0, optimizer=optim.Adam)
