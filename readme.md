@@ -23,6 +23,18 @@ If you have questions about any part of the paper, submission, leaderboard, code
 Hao Zhu first proposed this problem and proposed the way to build the dataset and the baseline system; Ziyuan Wang built and maintained the crowdsourcing website; Yuan Yao helped download the original data and conducted preprocess; 
 Xu Han, Hao Zhu, Pengfei Yu and Ziyun Wang implemented baselines and wrote the paper together; Zhiyuan Liu provided thoughtful advice and funds through the whole project. The order of the first four authors are determined by dice rolling. 
 
+## Dataset and Word Embedding
 
+The dataset has already be contained in the github repo. However, due to the large size, glove files (pre-trained word embeddings) are not included. Please download `glove.6B.50d.json` from [Tsinghua Cloud](https://cloud.tsinghua.edu.cn/f/b14bf0d3c9e04ead9c0a/?dl=1) or [Google Drive](https://drive.google.com/open?id=1UnncRYzDpezPkwIqhgkVW6BacIqz6EaB) and put it under `data/` folder.
+
+## Usage
+
+To run our baseline models, use command
+
+```bash
+python train_demo.py {MODEL_NAME}
+```
+
+replace `{MODEL_NAME}` with `proto`, `metanet`, `gnn` or `snail`.
 
 
