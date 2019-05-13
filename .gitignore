@@ -12,10 +12,11 @@ sbatch*
 
 # data
 _processed_data
-data/test.json
-data/glove.6B.50d.json
+data/glove*
+data/bert-base-uncased
 
 # virtualenv
 .virtual
 
 result.txt
+result_detail.txt
