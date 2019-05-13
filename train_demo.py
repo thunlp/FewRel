@@ -1,7 +1,7 @@
 import models
 from fewshot_re_kit.data_loader import get_loader
 from fewshot_re_kit.framework import FewShotREFramework
-from fewshot_re_kit.sentence_encoder import CNNSentenceEncoder 
+from fewshot_re_kit.sentence_encoder import CNNSentenceEncoder, BERTSentenceEncoder
 from models.proto import Proto
 from models.gnn import GNN
 from models.snail import SNAIL
@@ -39,6 +39,16 @@ def main():
             help='encoder: cnn or bert')
     parser.add_argument('--max_length', default=120, type=int,
            help='max length')
+    parser.add_argument('--lr', default=1e-1, type=float,
+           help='learning rate')
+    parser.add_argument('--weight_decay', default=1e-5, type=float,
+           help='weight decay')
+    parser.add_argument('--optim', default='sgd',
+           help='sgd / adam')
+    parser.add_argument('--hidden_size', default=230, type=int,
+           help='hidden size')
+
+
     parser.add_argument('--only_test', action='store_true') 
 
     opt = parser.parse_args()
@@ -64,7 +74,7 @@ def main():
     elif encoder_name == 'bert':
         sentence_encoder = BERTSentenceEncoder(
                 './data/bert-base-uncased',
-                max_length * 2)
+                max_length)
     else:
         raise NotImplementedError
 
@@ -74,7 +84,13 @@ def main():
             N=N, K=K, Q=Q, batch_size=batch_size)
     test_data_loader = get_loader(opt.test, sentence_encoder,
             N=N, K=K, Q=Q, batch_size=batch_size)
-
+    
+    if opt.optim == 'sgd':
+        optimizer = optim.SGD
+    elif opt.optim == 'adam':
+        optimizer = optim.Adam
+    else:
+        raise NotImplementedError
     framework = FewShotREFramework(train_data_loader, 
             val_data_loader, test_data_loader)
         
@@ -82,7 +98,7 @@ def main():
         str(N), str(K)])
     
     if model_name == 'proto':
-        model = Proto(sentence_encoder)
+        model = Proto(sentence_encoder, hidden_size=opt.hidden_size)
     elif model_name == 'gnn':
         model = GNN(sentence_encoder, N)
     elif model_name == 'snail':
@@ -97,7 +113,8 @@ def main():
         model.cuda()
     
     if not opt.only_test:
-        framework.train(model, prefix, batch_size, trainN, N, K, Q)
+        framework.train(model, prefix, batch_size, trainN, N, K, Q, 
+                optimizer=optimizer)
 
     # if model_name == 'proto':
     #     model = Proto(sentence_encoder)

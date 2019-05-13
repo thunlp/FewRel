@@ -30,6 +30,7 @@ class CNNSentenceEncoder(nn.Module):
         # token -> index
         indexed_tokens = []
         for token in raw_tokens:
+            token = token.lower()
             if token in self.word2id:
                 indexed_tokens.append(self.word2id[token])
             else:
@@ -76,6 +77,7 @@ class BERTSentenceEncoder(nn.Module):
         pos1_in_index = 0
         pos2_in_index = 0
         for token in raw_tokens:
+            token = token.lower()
             if cur_pos == pos_head[0]:
                 tokens.append('[HEADSTART]')
                 pos1_in_index = len(tokens)
@@ -88,9 +90,7 @@ class BERTSentenceEncoder(nn.Module):
             if cur_pos == pos_tail[-1]:
                 tokens.append('[TAILEND]')
             cur_pos += 1
-        print(tokens)
         indexed_tokens = self.tokenizer.convert_tokens_to_ids(tokens)
-        print(indexed_tokens)
         
         # padding
         while len(indexed_tokens) < self.max_length:
@@ -98,8 +98,8 @@ class BERTSentenceEncoder(nn.Module):
         indexed_tokens = indexed_tokens[:self.max_length]
 
         # pos
-        pos1 = []
-        pos2 = []
+        pos1 = np.zeros((self.max_length), dtype=np.int32)
+        pos2 = np.zeros((self.max_length), dtype=np.int32)
         for i in range(self.max_length):
             pos1[i] = i - pos1_in_index + self.max_length
             pos2[i] = i - pos2_in_index + self.max_length

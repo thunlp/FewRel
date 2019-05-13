@@ -1,4 +1,5 @@
 import json
+import math
 import numpy as np
 glove = json.load(open('./glove.6B.50d.json'))
 
@@ -6,17 +7,15 @@ word2id = {}
 word_vec_mat = []
 
 idx = 0
-sum_vec = np.zeros((50), dtype=np.float32)
 for item in glove:
-    word = item['word']
+    word = item['word'].lower()
     vec = np.array(item['vec'])
-    sum_vec += vec
+    vec = vec / np.sqrt(np.sum(vec ** 2))
     word_vec_mat.append(vec)
     word2id[word] = idx
     idx += 1
 
-sum_vec = sum_vec / float(idx)
-word_vec_mat.append(sum_vec)
+word_vec_mat.append(np.random.randn(50) / math.sqrt(50))
 word2id['[UNK]'] = idx
 idx += 1
 
