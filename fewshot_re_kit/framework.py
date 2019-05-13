@@ -97,7 +97,6 @@ class FewShotREFramework:
               val_iter=1000,
               val_step=2000,
               test_iter=3000,
-              cuda=True,
               pretrain_model=None,
               optimizer=optim.SGD):
         '''
@@ -116,7 +115,6 @@ class FewShotREFramework:
         val_iter: Num of iterations of validating
         val_step: Validate every val_step steps
         test_iter: Num of iterations of testing
-        cuda: Use CUDA or not
         pretrain_model: Pre-trained checkpoint path
         '''
         print("Start training...")
@@ -131,9 +129,7 @@ class FewShotREFramework:
             start_iter = checkpoint['iter'] + 1
         else:
             start_iter = 0
-
-        if cuda:
-            model = model.cuda()
+        
         model.train()
 
         # Training
@@ -144,7 +140,13 @@ class FewShotREFramework:
         iter_sample = 0.0
         for it in range(start_iter, start_iter + train_iter):
             scheduler.step()
-            support, query, label = self.train_data_loader.next_batch(B, N_for_train, K, Q)
+            support, query, label = next(self.train_data_loader)
+            if torch.cuda.is_available():
+                for k in support:
+                    support[k] = support[k].cuda()
+                for k in query:
+                    query[k] = query[k].cuda()
+                label = label.cuda()
             logits, pred = model(support, query, N_for_train, K, Q)
             loss = model.loss(logits, label)
             right = model.accuracy(pred, label)
@@ -196,6 +198,7 @@ class FewShotREFramework:
         return: Accuracy
         '''
         print("")
+        
         model.eval()
         if ckpt is None:
             eval_dataset = self.val_data_loader
@@ -207,7 +210,14 @@ class FewShotREFramework:
         iter_right = 0.0
         iter_sample = 0.0
         for it in range(eval_iter):
-            support, query, label = eval_dataset.next_batch(B, N, K, Q)
+            support, query, label = next(eval_dataset)
+            if torch.cuda.is_available():
+                for k in support:
+                    support[k] = support[k].cuda()
+                for k in query:
+                    query[k] = query[k].cuda()
+                label = label.cuda()
+
             logits, pred = model(support, query, N, K, Q)
             right = model.accuracy(pred, label)
             iter_right += self.item(right.data)

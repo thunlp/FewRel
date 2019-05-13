@@ -14,11 +14,11 @@ class Embedding(nn.Module):
         self.pos_embedding_dim = pos_embedding_dim
         
         # Word embedding
-        unk = torch.randn(1, word_embedding_dim) / math.sqrt(word_embedding_dim)
-        blk = torch.zeros(1, word_embedding_dim)
+        # unk = torch.randn(1, word_embedding_dim) / math.sqrt(word_embedding_dim)
+        # blk = torch.zeros(1, word_embedding_dim)
         word_vec_mat = torch.from_numpy(word_vec_mat)
-        self.word_embedding = nn.Embedding(word_vec_mat.shape[0] + 2, self.word_embedding_dim, padding_idx=word_vec_mat.shape[0] + 1)
-        self.word_embedding.weight.data.copy_(torch.cat((word_vec_mat, unk, blk), 0))
+        self.word_embedding = nn.Embedding(word_vec_mat.shape[0], self.word_embedding_dim, padding_idx=word_vec_mat.shape[0] - 1)
+        self.word_embedding.weight.data.copy_(word_vec_mat)
 
         # Position Embedding
         self.pos1_embedding = nn.Embedding(2 * max_length, pos_embedding_dim, padding_idx=0)
