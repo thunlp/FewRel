@@ -17,3 +17,5 @@ data/glove.6B.50d.json
 
 # virtualenv
 .virtual
+
+result.txt
