@@ -9,7 +9,7 @@ class FewRelDataset(data.Dataset):
     """
     FewRel Dataset
     """
-    def __init__(self, name, encoder, N, K, Q, root):
+    def __init__(self, name, encoder, N, K, Q, na_rate, root):
         self.root = root
         path = os.path.join(root, name + ".json")
         if not os.path.exists(path):
@@ -20,6 +20,7 @@ class FewRelDataset(data.Dataset):
         self.N = N
         self.K = K
         self.Q = Q
+        self.na_rate = na_rate
         self.encoder = encoder
 
     def __getraw__(self, item):
@@ -39,6 +40,9 @@ class FewRelDataset(data.Dataset):
         support_set = {'word': [], 'pos1': [], 'pos2': [], 'mask': [] }
         query_set = {'word': [], 'pos1': [], 'pos2': [], 'mask': [] }
         query_label = []
+        Q_na = int(self.na_rate * self.Q)
+        na_classes = list(filter(lambda x: x not in target_classes,  
+            self.classes))
 
         for i, class_name in enumerate(target_classes):
             indices = np.random.choice(
@@ -57,7 +61,23 @@ class FewRelDataset(data.Dataset):
                 else:
                     self.__additem__(query_set, word, pos1, pos2, mask)
                 count += 1
+
             query_label += [i] * self.Q
+
+        # NA
+        for j in range(Q_na):
+            cur_class = np.random.choice(na_classes, 1, False)[0]
+            index = np.random.choice(
+                    list(range(len(self.json_data[cur_class]))),
+                    1, False)[0]
+            word, pos1, pos2, mask = self.__getraw__(
+                    self.json_data[cur_class][index])
+            word = torch.tensor(word).long()
+            pos1 = torch.tensor(pos1).long()
+            pos2 = torch.tensor(pos2).long()
+            mask = torch.tensor(mask).long()
+            self.__additem__(query_set, word, pos1, pos2, mask)
+        query_label += [self.N] * Q_na
 
         return support_set, query_set, query_label
     
@@ -83,8 +103,8 @@ def collate_fn(data):
     return batch_support, batch_query, batch_label
 
 def get_loader(name, encoder, N, K, Q, batch_size, 
-        num_workers=4, collate_fn=collate_fn, root='./data'):
-    dataset = FewRelDataset(name, encoder, N, K, Q, root)
+        num_workers=4, collate_fn=collate_fn, na_rate=0, root='./data'):
+    dataset = FewRelDataset(name, encoder, N, K, Q, na_rate, root)
     data_loader = data.DataLoader(dataset=dataset,
             batch_size=batch_size,
             shuffle=False,

@@ -3,9 +3,11 @@ from fewshot_re_kit.data_loader import get_loader
 from fewshot_re_kit.framework import FewShotREFramework
 from fewshot_re_kit.sentence_encoder import CNNSentenceEncoder, BERTSentenceEncoder
 from models.proto import Proto
+from models.proto_norm import ProtoNorm
 from models.gnn import GNN
 from models.snail import SNAIL
 from models.metanet import MetaNet
+from models.siamese import Siamese
 import sys
 from torch import optim
 import numpy as np
@@ -21,6 +23,8 @@ def main():
             help='val file')
     parser.add_argument('--test', default='test',
             help='test file')
+    parser.add_argument('--pretrain', default="",
+            help='pretrain path')
     parser.add_argument('--trainN', default=10, type=int,
             help='N in train')
     parser.add_argument('--N', default=5, type=int,
@@ -39,15 +43,22 @@ def main():
             help='encoder: cnn or bert')
     parser.add_argument('--max_length', default=120, type=int,
            help='max length')
+    parser.add_argument('--val_step', default=2000, type=int,
+           help='val after training for how many steps')
     parser.add_argument('--lr', default=1e-1, type=float,
            help='learning rate')
+    parser.add_argument('--na_rate', default=0, type=int,
+           help='NA rate (NA = Q * na_rate)')
     parser.add_argument('--weight_decay', default=1e-5, type=float,
            help='weight decay')
+    parser.add_argument('--grad_iter', default=1, type=int,
+           help='grad iter')
     parser.add_argument('--optim', default='sgd',
            help='sgd / adam')
     parser.add_argument('--hidden_size', default=230, type=int,
            help='hidden size')
-
+    parser.add_argument('--test_ckpt', default='',
+           help='test ckpt')
 
     parser.add_argument('--only_test', action='store_true') 
 
@@ -79,11 +90,11 @@ def main():
         raise NotImplementedError
 
     train_data_loader = get_loader(opt.train, sentence_encoder,
-            N=trainN, K=K, Q=Q, batch_size=batch_size)
+            N=trainN, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
     val_data_loader = get_loader(opt.val, sentence_encoder,
-            N=N, K=K, Q=Q, batch_size=batch_size)
+            N=N, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
     test_data_loader = get_loader(opt.test, sentence_encoder,
-            N=N, K=K, Q=Q, batch_size=batch_size)
+            N=N, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
     
     if opt.optim == 'sgd':
         optimizer = optim.SGD
@@ -96,9 +107,13 @@ def main():
         
     prefix = '-'.join([model_name, encoder_name, opt.train, opt.val, 
         str(N), str(K)])
+    if opt.na_rate != 0:
+        prefix += '-na{}'.format(opt.na_rate)
     
     if model_name == 'proto':
         model = Proto(sentence_encoder, hidden_size=opt.hidden_size)
+    elif model_name == 'proto_norm':
+        model = ProtoNorm(sentence_encoder, hidden_size=opt.hidden_size)
     elif model_name == 'gnn':
         model = GNN(sentence_encoder, N)
     elif model_name == 'snail':
@@ -106,6 +121,8 @@ def main():
         model = SNAIL(sentence_encoder, N, K)
     elif model_name == 'metanet':
         model = MetaNet(N, K, train_data_loader.word_vec_mat, max_length)
+    elif model_name == 'siamese':
+        model = Siamese(sentence_encoder, hidden_size=opt.hidden_size)
     else:
         raise NotImplementedError
 
@@ -113,8 +130,12 @@ def main():
         model.cuda()
     
     if not opt.only_test:
-        framework.train(model, prefix, batch_size, trainN, N, K, Q, 
-                optimizer=optimizer)
+        bert_optim = False
+        if encoder_name == 'bert':
+            bert_optim = True
+        framework.train(model, prefix, batch_size, trainN, N, K, Q,
+                optimizer=optimizer, pretrain_model=opt.pretrain, 
+                bert_optim=bert_optim, na_rate=opt.na_rate, val_step=opt.val_step)
 
     # if model_name == 'proto':
     #     model = Proto(sentence_encoder)
@@ -149,12 +170,27 @@ def main():
     #     raise NotImplementedError
     
     # test
+
+    # debug:
+
+    # if len(opt.pretrain) > 0:
+    #     state_dict = torch.load(opt.pretrain)['state_dict']
+    #     own_state = model.state_dict()
+    #     for name, param in state_dict.items():
+    #         if name not in own_state:
+    #             continue
+    #         own_state[name].copy_(param)
+
+    test_ckpt = 'checkpoint/{}.pth.tar'.format(prefix)
+    if len(opt.test_ckpt) > 0:
+        test_ckpt = opt.test_ckpt
+
     acc = 0
     his_acc = []
     total_test_round = 5
     for i in range(total_test_round):
-        cur_acc = framework.eval(model, 4, N, K, 50, 3000, 
-                ckpt='checkpoint/{}.pth.tar'.format(prefix))
+        cur_acc = framework.eval(model, 4, N, K, Q, 3000, na_rate=opt.na_rate,
+                ckpt=test_ckpt)
         his_acc.append(cur_acc)
         acc += cur_acc
     acc /= total_test_round

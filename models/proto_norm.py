@@ -6,7 +6,12 @@ from torch import autograd, optim, nn
 from torch.autograd import Variable
 from torch.nn import functional as F
 
-class Proto(fewshot_re_kit.framework.FewShotREModel):
+def l2norm(X):
+    norm = torch.pow(X, 2).sum(dim=-1, keepdim=True).sqrt()
+    X = torch.div(X, norm)
+    return X
+
+class ProtoNorm(fewshot_re_kit.framework.FewShotREModel):
     
     def __init__(self, sentence_encoder, hidden_size=230):
         fewshot_re_kit.framework.FewShotREModel.__init__(self, sentence_encoder)
@@ -30,6 +35,8 @@ class Proto(fewshot_re_kit.framework.FewShotREModel):
         '''
         support = self.sentence_encoder(support) # (B * N * K, D), where D is the hidden size
         query = self.sentence_encoder(query) # (B * total_Q, D)
+        support = l2norm(support)
+        query = l2norm(query)
         support = self.drop(support)
         query = self.drop(query)
         support = support.view(-1, N, K, self.hidden_size) # (B, N, K, D)

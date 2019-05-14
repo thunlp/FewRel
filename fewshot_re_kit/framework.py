@@ -9,6 +9,13 @@ import torch
 from torch import autograd, optim, nn
 from torch.autograd import Variable
 from torch.nn import functional as F
+from pytorch_pretrained_bert import BertAdam
+
+def warmup_linear(global_step, warmup_step):
+    if global_step < warmup_step:
+        return global_step / warmup_step
+    else:
+        return 1.0
 
 class FewShotREModel(nn.Module):
     def __init__(self, sentence_encoder):
@@ -88,6 +95,7 @@ class FewShotREFramework:
               model,
               model_name,
               B, N_for_train, N_for_eval, K, Q,
+              na_rate=0,
               ckpt_dir='./checkpoint',
               test_result_dir='./test_result',
               learning_rate=1e-1,
@@ -98,7 +106,11 @@ class FewShotREFramework:
               val_step=2000,
               test_iter=3000,
               pretrain_model=None,
-              optimizer=optim.SGD):
+              optimizer=optim.SGD,
+              bert_optim=False,
+              warmup=True,
+              warmup_step=300,
+              grad_iter=1):
         '''
         model: a FewShotREModel instance
         model_name: Name of the model
@@ -120,13 +132,33 @@ class FewShotREFramework:
         print("Start training...")
         
         # Init
-        parameters_to_optimize = filter(lambda x:x.requires_grad, model.parameters())
-        optimizer = optimizer(parameters_to_optimize, learning_rate, weight_decay=weight_decay)
+        if bert_optim:
+            print('use bert optim!')
+            param_optimizer = list(model.named_parameters())
+            no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
+            optimizer_grouped_parameters = [
+                {'params': [p for n, p in param_optimizer 
+                    if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
+                {'params': [p for n, p in param_optimizer 
+                    if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+                ]
+            optimizer = BertAdam(optimizer_grouped_parameters, lr=2e-5)
+            lr_step_size = 1000000000
+        else:
+            parameters_to_optimize = filter(lambda x:x.requires_grad, 
+                    model.parameters())
+            optimizer = optimizer(parameters_to_optimize, 
+                    learning_rate, weight_decay=weight_decay)
         scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=lr_step_size)
-        if pretrain_model:
-            checkpoint = self.__load_model__(pretrain_model)
-            model.load_state_dict(checkpoint['state_dict'])
-            start_iter = checkpoint['iter'] + 1
+        if pretrain_model and len(pretrain_model) > 0:
+            state_dict = self.__load_model__(pretrain_model)['state_dict']
+            own_state = model.state_dict()
+            for name, param in state_dict.items():
+                if name not in own_state:
+                    continue
+                own_state[name].copy_(param)
+            #start_iter = checkpoint['iter'] + 1
+            start_iter = 0
         else:
             start_iter = 0
         
@@ -147,13 +179,24 @@ class FewShotREFramework:
                 for k in query:
                     query[k] = query[k].cuda()
                 label = label.cuda()
-            logits, pred = model(support, query, N_for_train, K, Q)
-            loss = model.loss(logits, label)
+            logits, pred = model(support, query, N_for_train, K, 
+                    Q * N_for_train + na_rate * Q)
+            loss = model.loss(logits, label) / float(grad_iter)
             right = model.accuracy(pred, label)
-            optimizer.zero_grad()
             loss.backward()
-            nn.utils.clip_grad_norm(parameters_to_optimize, 10)
-            optimizer.step()
+
+            if bert_optim:
+                cur_lr = 2e-5
+                if warmup:
+                    cur_lr *= warmup_linear(it, warmup_step)
+                for param_group in optimizer.param_groups:
+                    param_group['lr'] = cur_lr
+            else:
+                nn.utils.clip_grad_norm(parameters_to_optimize, 10)
+
+            if it % grad_iter == 0:
+                optimizer.step()
+                optimizer.zero_grad()
             
             iter_loss += self.item(loss.data)
             iter_right += self.item(right.data)
@@ -167,7 +210,8 @@ class FewShotREFramework:
                 iter_sample = 0.
 
             if (it + 1) % val_step == 0:
-                acc = self.eval(model, B, N_for_eval, K, Q, val_iter)
+                acc = self.eval(model, B, N_for_eval, K, Q, val_iter, 
+                        na_rate=na_rate)
                 model.train()
                 if acc > best_acc:
                     print('Best checkpoint')
@@ -179,13 +223,14 @@ class FewShotREFramework:
                 
         print("\n####################\n")
         print("Finish training " + model_name)
-        test_acc = self.eval(model, B, N_for_eval, K, Q, test_iter, ckpt=os.path.join(ckpt_dir, model_name + '.pth.tar'))
-        print("Test accuracy: {}".format(test_acc))
+        # test_acc = self.eval(model, B, N_for_eval, K, Q, test_iter, ckpt=os.path.join(ckpt_dir, model_name + '.pth.tar'))
+        # print("Test accuracy: {}".format(test_acc))
 
     def eval(self,
             model,
             B, N, K, Q,
             eval_iter,
+            na_rate=0,
             ckpt=None): 
         '''
         model: a FewShotREModel instance
@@ -203,8 +248,12 @@ class FewShotREFramework:
         if ckpt is None:
             eval_dataset = self.val_data_loader
         else:
-            checkpoint = self.__load_model__(ckpt)
-            model.load_state_dict(checkpoint['state_dict'])
+            state_dict = self.__load_model__(ckpt)['state_dict']
+            own_state = model.state_dict()
+            for name, param in state_dict.items():
+                if name not in own_state:
+                    continue
+                own_state[name].copy_(param)
             eval_dataset = self.test_data_loader
 
         iter_right = 0.0
@@ -218,7 +267,7 @@ class FewShotREFramework:
                     query[k] = query[k].cuda()
                 label = label.cuda()
 
-            logits, pred = model(support, query, N, K, Q)
+            logits, pred = model(support, query, N, K, Q * N + Q * na_rate)
             right = model.accuracy(pred, label)
             iter_right += self.item(right.data)
             iter_sample += 1
