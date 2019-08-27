@@ -120,7 +120,7 @@ def main():
         print("HINT: SNAIL works only in PyTorch 0.3.1")
         model = SNAIL(sentence_encoder, N, K)
     elif model_name == 'metanet':
-        model = MetaNet(N, K, train_data_loader.word_vec_mat, max_length)
+        model = MetaNet(N, K, sentence_encoder.embedding, max_length)
     elif model_name == 'siamese':
         model = Siamese(sentence_encoder, hidden_size=opt.hidden_size)
     else:

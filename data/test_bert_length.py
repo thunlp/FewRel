@@ -11,7 +11,8 @@ total = 0
 
 for root, dirs, files in os.walk('.'):
     for f in files:
-        if f[-4:] == 'json' and 'glove' not in f and 'bert' not in f:
+        #if f[-4:] == 'json' and 'glove' not in f and 'bert' not in f:
+        if f in ['train.json', 'val.json', 'test.json']:
             data = json.load(open(f))
             for k, v in data.items():
                 for item in v:

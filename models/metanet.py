@@ -79,7 +79,7 @@ class LearnerForBasic(nn.Module):
 
 class MetaNet(fewshot_re_kit.framework.FewShotREModel):
     
-    def __init__(self, N, K, word_vec_mat, max_length, hidden_size=230):
+    def __init__(self, N, K, embedding, max_length, hidden_size=230):
         '''
         N: num of classes
         K: num of instances for each class
@@ -91,7 +91,8 @@ class MetaNet(fewshot_re_kit.framework.FewShotREModel):
         self.N = N
         self.K = K
         
-        self.embedding = Embedding(word_vec_mat, max_length, word_embedding_dim=50, pos_embedding_dim=5)
+        # self.embedding = Embedding(word_vec_mat, max_length, word_embedding_dim=50, pos_embedding_dim=5)
+        self.embedding = embedding
 
         self.basic_encoder = Encoder(max_length, word_embedding_dim=50, pos_embedding_dim=5, hidden_size=hidden_size)
         self.attention_encoder = Encoder(max_length, word_embedding_dim=50, pos_embedding_dim=5, hidden_size=hidden_size)
