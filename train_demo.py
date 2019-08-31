@@ -126,8 +126,8 @@ def main():
     else:
         raise NotImplementedError
 
-    if torch.cuda.is_available():
-        model.cuda()
+    # if torch.cuda.is_available():
+    #     model.cuda()
     
     if not opt.only_test:
         bert_optim = False
