@@ -11,7 +11,7 @@ from torch.autograd import Variable
 from torch.nn import functional as F
 # from pytorch_pretrained_bert import BertAdam
 from pytorch_transformers import AdamW, WarmupLinearSchedule
-# from apex import amp
+from apex import amp
 
 def warmup_linear(global_step, warmup_step):
     if global_step < warmup_step:
@@ -113,7 +113,7 @@ class FewShotREFramework:
               warmup=True,
               warmup_step=300,
               grad_iter=1,
-              fp16=False):
+              fp16=True):
         '''
         model: a FewShotREModel instance
         model_name: Name of the model
@@ -137,15 +137,15 @@ class FewShotREFramework:
         # Init
         if bert_optim:
             print('use bert optim!')
-            param_optimizer = list(model.named_parameters())
+            parameters_to_optimize = list(model.named_parameters())
             no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
-            optimizer_grouped_parameters = [
-                {'params': [p for n, p in param_optimizer 
+            parameters_to_optimize = [
+                {'params': [p for n, p in parameters_to_optimize 
                     if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
-                {'params': [p for n, p in param_optimizer 
+                {'params': [p for n, p in parameters_to_optimizek 
                     if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
                 ]
-            optimizer = AdamW(optimizer_grouped_parameters, lr=2e-5, correct_bias=False)
+            optimizer = AdamW(parameters_to_optimize, lr=2e-5, correct_bias=False)
             scheduler = WarmupLinearSchedule(optimizer, warmup_steps=warmup_step, t_total=train_iter) 
             lr_step_size = 1000000000
             if fp16:
