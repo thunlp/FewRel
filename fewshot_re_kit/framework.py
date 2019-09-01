@@ -133,7 +133,8 @@ class FewShotREFramework:
         pretrain_model: Pre-trained checkpoint path
         '''
         print("Start training...")
-        
+        model.cuda()
+    
         # Init
         if bert_optim:
             print('use bert optim!')
@@ -142,7 +143,7 @@ class FewShotREFramework:
             parameters_to_optimize = [
                 {'params': [p for n, p in parameters_to_optimize 
                     if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
-                {'params': [p for n, p in parameters_to_optimizek 
+                {'params': [p for n, p in parameters_to_optimize
                     if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
                 ]
             optimizer = AdamW(parameters_to_optimize, lr=2e-5, correct_bias=False)
@@ -167,7 +168,7 @@ class FewShotREFramework:
             start_iter = 0
         else:
             start_iter = 0
-        
+
         model = nn.DataParallel(model)
         model.cuda()
         model.train()
@@ -196,7 +197,7 @@ class FewShotREFramework:
                 torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), 1)
             else:
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(parameters_to_optimize, 1)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
 
             # if bert_optim:
             #     cur_lr = 2e-5
