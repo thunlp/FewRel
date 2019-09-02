@@ -129,18 +129,19 @@ def main():
     else:
         raise NotImplementedError
 
-    model.cuda()
-    model = nn.DataParallel(model)
-    model.cuda()
-
     
     if not opt.only_test:
         bert_optim = False
         if encoder_name == 'bert':
             bert_optim = True
-        framework.train(model, prefix, batch_size, trainN, N, K, Q,
+        model = framework.train(model, prefix, batch_size, trainN, N, K, Q,
                 optimizer=optimizer, pretrain_model=opt.pretrain, 
                 bert_optim=bert_optim, na_rate=opt.na_rate, val_step=opt.val_step, fp16=opt.fp16, train_iter=opt.train_iter, val_iter=opt.val_iter)
+    else:
+        model.cuda()
+        model = nn.DataParallel(model)
+        model.cuda()
+
 
     # if model_name == 'proto':
     #     model = Proto(sentence_encoder)

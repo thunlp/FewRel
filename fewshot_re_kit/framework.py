@@ -134,6 +134,7 @@ class FewShotREFramework:
         '''
         print("Start training...")
     
+        model.cuda()
         # Init
         if bert_optim:
             print('use bert optim!')
@@ -168,8 +169,8 @@ class FewShotREFramework:
         else:
             start_iter = 0
 
-        # model = nn.DataParallel(model)
-        # model.cuda()
+        model = nn.DataParallel(model)
+        model.cuda()
         model.train()
 
         # Training
@@ -239,6 +240,7 @@ class FewShotREFramework:
         print("Finish training " + model_name)
         # test_acc = self.eval(model, B, N_for_eval, K, Q, test_iter, ckpt=os.path.join(ckpt_dir, model_name + '.pth.tar'))
         # print("Test accuracy: {}".format(test_acc))
+        return model
 
     def eval(self,
             model,
