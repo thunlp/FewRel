@@ -133,7 +133,6 @@ class FewShotREFramework:
         pretrain_model: Pre-trained checkpoint path
         '''
         print("Start training...")
-        model.cuda()
     
         # Init
         if bert_optim:
@@ -169,8 +168,8 @@ class FewShotREFramework:
         else:
             start_iter = 0
 
-        model = nn.DataParallel(model)
-        model.cuda()
+        # model = nn.DataParallel(model)
+        # model.cuda()
         model.train()
 
         # Training

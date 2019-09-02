@@ -9,7 +9,7 @@ from models.snail import SNAIL
 from models.metanet import MetaNet
 from models.siamese import Siamese
 import sys
-from torch import optim
+from torch import optim, nn
 import numpy as np
 import torch
 import json
@@ -35,7 +35,9 @@ def main():
             help='Num of query per class')
     parser.add_argument('--batch_size', default=4, type=int,
             help='batch size')
-    parser.add_argument('--train_epoch', default=30000, type=int,
+    parser.add_argument('--train_iter', default=30000, type=int,
+            help='num of epochs training')
+    parser.add_argument('--val_iter', default=1000, type=int,
             help='num of epochs training')
     parser.add_argument('--model', default='proto',
             help='model name')
@@ -59,8 +61,9 @@ def main():
            help='hidden size')
     parser.add_argument('--test_ckpt', default='',
            help='test ckpt')
+    parser.add_argument('--fp16', action='store_true')
 
-    parser.add_argument('--only_test', action='store_true') 
+    parser.add_argument('--only_test', action='store_true')
 
     opt = parser.parse_args()
     trainN = opt.trainN
@@ -126,8 +129,10 @@ def main():
     else:
         raise NotImplementedError
 
-    # if torch.cuda.is_available():
-    #     model.cuda()
+    model.cuda()
+    model = nn.DataParallel(model)
+    model.cuda()
+
     
     if not opt.only_test:
         bert_optim = False
@@ -135,7 +140,7 @@ def main():
             bert_optim = True
         framework.train(model, prefix, batch_size, trainN, N, K, Q,
                 optimizer=optimizer, pretrain_model=opt.pretrain, 
-                bert_optim=bert_optim, na_rate=opt.na_rate, val_step=opt.val_step)
+                bert_optim=bert_optim, na_rate=opt.na_rate, val_step=opt.val_step, fp16=opt.fp16, train_iter=opt.train_iter, val_iter=opt.val_iter)
 
     # if model_name == 'proto':
     #     model = Proto(sentence_encoder)
