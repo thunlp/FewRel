@@ -149,8 +149,6 @@ class FewShotREFramework:
             optimizer = AdamW(parameters_to_optimize, lr=2e-5, correct_bias=False)
             scheduler = WarmupLinearSchedule(optimizer, warmup_steps=warmup_step, t_total=train_iter) 
             lr_step_size = 1000000000
-            if fp16:
-                model, optimizer = amp.initialize(model, optimizer, opt_level='O1')
         else:
             parameters_to_optimize = filter(lambda x:x.requires_grad, 
                     model.parameters())
@@ -168,6 +166,9 @@ class FewShotREFramework:
             start_iter = 0
         else:
             start_iter = 0
+
+        if fp16:
+            model, optimizer = amp.initialize(model, optimizer, opt_level='O1')
 
         model = nn.DataParallel(model)
         model.cuda()
