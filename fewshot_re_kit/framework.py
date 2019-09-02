@@ -194,10 +194,10 @@ class FewShotREFramework:
             if fp16:
                 with amp.scale_loss(loss, optimizer) as scaled_loss:
                     scaled_loss.backward()
-                torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), 1)
+                # torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), 1)
             else:
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
+                # torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
 
             # if bert_optim:
             #     cur_lr = 2e-5
