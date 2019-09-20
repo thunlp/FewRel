@@ -49,6 +49,7 @@ def main():
            help='val after training for how many steps')
     parser.add_argument('--lr', default=1e-1, type=float,
            help='learning rate')
+    parser.add_argument('--dropout', default=0.0, type=float)
     parser.add_argument('--na_rate', default=0, type=int,
            help='NA rate (NA = Q * na_rate)')
     parser.add_argument('--weight_decay', default=1e-5, type=float,
@@ -125,7 +126,7 @@ def main():
     elif model_name == 'metanet':
         model = MetaNet(N, K, sentence_encoder.embedding, max_length)
     elif model_name == 'siamese':
-        model = Siamese(sentence_encoder, hidden_size=opt.hidden_size)
+        model = Siamese(sentence_encoder, hidden_size=opt.hidden_size, dropout=opt.dropout)
     else:
         raise NotImplementedError
 
@@ -141,51 +142,6 @@ def main():
         model.cuda()
         model = nn.DataParallel(model)
         model.cuda()
-
-
-    # if model_name == 'proto':
-    #     model = Proto(sentence_encoder)
-    #     if torch.cuda.is_available():
-    #         model.cuda()
-    #     if not opt.only_test:
-    #         framework.train(model, prefix, 4, 10, N, K, 5)
-    # elif model_name == 'gnn':
-    #     model = GNN(sentence_encoder, N)
-    #     if torch.cuda.is_available():
-    #         model.cuda()
-    #     if not opt.only_test:
-    #         framework.train(model, prefix, 2, N, N, K, 1, 
-    #             learning_rate=1e-3, weight_decay=0, optimizer=optim.Adam)
-    # elif model_name == 'snail':
-    #     print("HINT: SNAIL works only in PyTorch 0.3.1")
-    #     model = SNAIL(sentence_encoder, N, K)
-    #     if torch.cuda.is_available():
-    #         model.cuda()
-    #     if not opt.only_test:
-    #         framework.train(model, prefix, 25, N, N, K, 1, 
-    #             learning_rate=1e-2, weight_decay=0, optimizer=optim.SGD)
-    # elif model_name == 'metanet':
-    #     model = MetaNet(N, K, train_data_loader.word_vec_mat, max_length)
-    #     if torch.cuda.is_available():
-    #         model.cuda()
-    #     if not opt.only_test:
-    #         framework.train(model, prefix, 1, N, N, K, 1, 
-    #             learning_rate=5e-3, weight_decay=0, optimizer=optim.Adam, 
-    #             train_iter=300000)
-    # else:
-    #     raise NotImplementedError
-    
-    # test
-
-    # debug:
-
-    # if len(opt.pretrain) > 0:
-    #     state_dict = torch.load(opt.pretrain)['state_dict']
-    #     own_state = model.state_dict()
-    #     for name, param in state_dict.items():
-    #         if name not in own_state:
-    #             continue
-    #         own_state[name].copy_(param)
 
     test_ckpt = 'checkpoint/{}.pth.tar'.format(prefix)
     if len(opt.test_ckpt) > 0:
