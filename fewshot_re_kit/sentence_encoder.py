@@ -61,9 +61,9 @@ class BERTSentenceEncoder(nn.Module):
 
     def __init__(self, pretrain_path, max_length): 
         nn.Module.__init__(self)
-        self.bert = BertModel.from_pretrained('bert-base-uncased')
+        self.bert = BertModel.from_pretrained(pretrain_path)
         self.max_length = max_length
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.tokenizer = BertTokenizer.from_pretrained(pretrain_path)
 
     def forward(self, inputs):
         _, x = self.bert(inputs['word'], attention_mask=inputs['mask'])
