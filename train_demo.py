@@ -1,30 +1,27 @@
-import models
 from fewshot_re_kit.data_loader import get_loader
 from fewshot_re_kit.framework import FewShotREFramework
 from fewshot_re_kit.sentence_encoder import CNNSentenceEncoder, BERTSentenceEncoder
+import models
 from models.proto import Proto
-from models.proto_norm import ProtoNorm
 from models.gnn import GNN
 from models.snail import SNAIL
 from models.metanet import MetaNet
 from models.siamese import Siamese
 import sys
+import torch
 from torch import optim, nn
 import numpy as np
-import torch
 import json
 import argparse
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--train', default='train',
+    parser.add_argument('--train', default='train_wiki',
             help='train file')
-    parser.add_argument('--val', default='val',
+    parser.add_argument('--val', default='val_wiki',
             help='val file')
-    parser.add_argument('--test', default='test',
+    parser.add_argument('--test', default='test_wiki',
             help='test file')
-    parser.add_argument('--pretrain', default="",
-            help='pretrain path')
     parser.add_argument('--trainN', default=10, type=int,
             help='N in train')
     parser.add_argument('--N', default=5, type=int,
@@ -39,32 +36,36 @@ def main():
             help='num of epochs training')
     parser.add_argument('--val_iter', default=1000, type=int,
             help='num of epochs training')
+    parser.add_argument('--val_step', default=2000, type=int,
+           help='val after training how many iters')
     parser.add_argument('--model', default='proto',
             help='model name')
     parser.add_argument('--encoder', default='cnn',
             help='encoder: cnn or bert')
-    parser.add_argument('--max_length', default=120, type=int,
+    parser.add_argument('--max_length', default=128, type=int,
            help='max length')
-    parser.add_argument('--val_step', default=2000, type=int,
-           help='val after training for how many steps')
     parser.add_argument('--lr', default=1e-1, type=float,
            help='learning rate')
-    parser.add_argument('--dropout', default=0.0, type=float)
-    parser.add_argument('--na_rate', default=0, type=int,
-           help='NA rate (NA = Q * na_rate)')
     parser.add_argument('--weight_decay', default=1e-5, type=float,
            help='weight decay')
+    parser.add_argument('--dropout', default=0.0, type=float,
+           help='dropout rate')
+    parser.add_argument('--na_rate', default=0, type=int,
+           help='NA rate (NA = Q * na_rate)')
     parser.add_argument('--grad_iter', default=1, type=int,
-           help='grad iter')
+           help='accumulate gradient every x iterations')
     parser.add_argument('--optim', default='sgd',
-           help='sgd / adam')
+           help='sgd / adam / bert_adam')
     parser.add_argument('--hidden_size', default=230, type=int,
            help='hidden size')
-    parser.add_argument('--test_ckpt', default='',
-           help='test ckpt')
-    parser.add_argument('--fp16', action='store_true')
-
-    parser.add_argument('--only_test', action='store_true')
+    parser.add_argument('--load_ckpt', default=None,
+           help='load ckpt')
+    parser.add_argument('--save_ckpt', default=None,
+           help='save ckpt')
+    parser.add_argument('--fp16', action='store_true',
+           help='use nvidia apex fp16')
+    parser.add_argument('--only_test', action='store_true',
+           help='only test')
 
     opt = parser.parse_args()
     trainN = opt.trainN
@@ -82,13 +83,18 @@ def main():
     print("max_length: {}".format(max_length))
     
     if encoder_name == 'cnn':
+        try:
+            glove_mat = np.load('./pretrain/glove/glove_mat.npy'),
+            glove_word2id = json.load(open('./pretrain/glove/glove_word2id.json')),
+        except:
+            raise Exception("Cannot find glove files. Run glove/download_glove.sh to download glove files.")
         sentence_encoder = CNNSentenceEncoder(
-                np.load('./data/glove_mat.npy'),
-                json.load(open('./data/glove_word2id.json')),
+                glove_mat,
+                glove_word2id,
                 max_length)
     elif encoder_name == 'bert':
         sentence_encoder = BERTSentenceEncoder(
-                './data/bert-base-uncased',
+                './pretrain/bert-base-uncased',
                 max_length)
     else:
         raise NotImplementedError
@@ -104,20 +110,19 @@ def main():
         optimizer = optim.SGD
     elif opt.optim == 'adam':
         optimizer = optim.Adam
+    elif opt.optim == 'bert_adam':
+        from pytorch_transformers import AdamW
+        optimizer = AdamW
     else:
         raise NotImplementedError
-    framework = FewShotREFramework(train_data_loader, 
-            val_data_loader, test_data_loader)
+    framework = FewShotREFramework(train_data_loader, val_data_loader, test_data_loader)
         
-    prefix = '-'.join([model_name, encoder_name, opt.train, opt.val, 
-        str(N), str(K)])
+    prefix = '-'.join([model_name, encoder_name, opt.train, opt.val, str(N), str(K)])
     if opt.na_rate != 0:
         prefix += '-na{}'.format(opt.na_rate)
     
     if model_name == 'proto':
         model = Proto(sentence_encoder, hidden_size=opt.hidden_size)
-    elif model_name == 'proto_norm':
-        model = ProtoNorm(sentence_encoder, hidden_size=opt.hidden_size)
     elif model_name == 'gnn':
         model = GNN(sentence_encoder, N)
     elif model_name == 'snail':
@@ -130,29 +135,32 @@ def main():
     else:
         raise NotImplementedError
 
-    
-    if not opt.only_test:
-        bert_optim = False
-        if encoder_name == 'bert':
-            bert_optim = True
-        model = framework.train(model, prefix, batch_size, trainN, N, K, Q,
-                optimizer=optimizer, pretrain_model=opt.pretrain, 
-                bert_optim=bert_optim, na_rate=opt.na_rate, val_step=opt.val_step, fp16=opt.fp16, train_iter=opt.train_iter, val_iter=opt.val_iter)
-    else:
-        model.cuda()
-        model = nn.DataParallel(model)
+    ckpt = 'checkpoint/{}.pth.tar'.format(prefix)
+    if opt.save_ckpt:
+        ckpt = opt.save_ckpt
+
+    if torch.cuda.is_available():
         model.cuda()
 
-    test_ckpt = 'checkpoint/{}.pth.tar'.format(prefix)
-    if len(opt.test_ckpt) > 0:
-        test_ckpt = opt.test_ckpt
+    if not opt.only_test:
+        if encoder_name == 'bert':
+            bert_optim = True
+        else:
+            bert_optim = False
+
+        framework.train(model, prefix, batch_size, trainN, N, K, Q,
+                optimizer=optimizer, load_ckpt=opt.load_ckpt, save_ckpt=ckpt,
+                na_rate=opt.na_rate, val_step=opt.val_step, fp16=opt.fp16, 
+                train_iter=opt.train_iter, val_iter=opt.val_iter, bert_optim=bert_optim)
+    else:
+        ckpt = opt.load_ckpt
 
     acc = 0
     his_acc = []
     total_test_round = 5
     for i in range(total_test_round):
-        cur_acc = framework.eval(model, 4, N, K, Q, 3000, na_rate=opt.na_rate,
-                ckpt=test_ckpt)
+        cur_acc = framework.eval(model, batch_size, N, K, Q, 3000, na_rate=opt.na_rate,
+                ckpt=ckpt)
         his_acc.append(cur_acc)
         acc += cur_acc
     acc /= total_test_round

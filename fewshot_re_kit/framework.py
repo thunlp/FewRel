@@ -11,7 +11,6 @@ from torch.autograd import Variable
 from torch.nn import functional as F
 # from pytorch_pretrained_bert import BertAdam
 from pytorch_transformers import AdamW, WarmupLinearSchedule
-from apex import amp
 
 def warmup_linear(global_step, warmup_step):
     if global_step < warmup_step:
@@ -27,7 +26,7 @@ class FewShotREModel(nn.Module):
         You need to set self.cost as your own loss function.
         '''
         nn.Module.__init__(self)
-        self.sentence_encoder = sentence_encoder
+        self.sentence_encoder = nn.DataParallel(sentence_encoder)
         self.cost = nn.CrossEntropyLoss()
     
     def forward(self, support, query, N, K, Q):
@@ -98,8 +97,6 @@ class FewShotREFramework:
               model_name,
               B, N_for_train, N_for_eval, K, Q,
               na_rate=0,
-              ckpt_dir='./checkpoint',
-              test_result_dir='./test_result',
               learning_rate=1e-1,
               lr_step_size=20000,
               weight_decay=1e-5,
@@ -107,13 +104,14 @@ class FewShotREFramework:
               val_iter=1000,
               val_step=2000,
               test_iter=3000,
-              pretrain_model=None,
+              load_ckpt=None,
+              save_ckpt=None,
               optimizer=optim.SGD,
               bert_optim=False,
               warmup=True,
               warmup_step=300,
               grad_iter=1,
-              fp16=True):
+              fp16=False):
         '''
         model: a FewShotREModel instance
         model_name: Name of the model
@@ -122,7 +120,6 @@ class FewShotREFramework:
         K: Num of instances for each class in the support set
         Q: Num of instances for each class in the query set
         ckpt_dir: Directory of checkpoints
-        test_result_dir: Directory of test results
         learning_rate: Initial learning rate
         lr_step_size: Decay learning rate every lr_step_size steps
         weight_decay: Rate of decaying weight
@@ -130,7 +127,6 @@ class FewShotREFramework:
         val_iter: Num of iterations of validating
         val_step: Validate every val_step steps
         test_iter: Num of iterations of testing
-        pretrain_model: Pre-trained checkpoint path
         '''
         print("Start training...")
     
@@ -155,8 +151,8 @@ class FewShotREFramework:
             optimizer = optimizer(parameters_to_optimize, 
                     learning_rate, weight_decay=weight_decay)
             scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=lr_step_size)
-        if pretrain_model and len(pretrain_model) > 0:
-            state_dict = self.__load_model__(pretrain_model)['state_dict']
+        if load_ckpt:
+            state_dict = self.__load_model__(load_ckpt)['state_dict']
             own_state = model.state_dict()
             for name, param in state_dict.items():
                 if name not in own_state:
@@ -168,10 +164,9 @@ class FewShotREFramework:
             start_iter = 0
 
         if fp16:
+            from apex import amp
             model, optimizer = amp.initialize(model, optimizer, opt_level='O1')
 
-        model = nn.DataParallel(model)
-        model.cuda()
         model.train()
 
         # Training
@@ -200,15 +195,6 @@ class FewShotREFramework:
                 loss.backward()
                 # torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
 
-            # if bert_optim:
-            #     cur_lr = 2e-5
-            #     if warmup:
-            #         cur_lr *= warmup_linear(it, warmup_step)
-            #     for param_group in optimizer.param_groups:
-            #         param_group['lr'] = cur_lr
-            # else:
-            #     nn.utils.clip_grad_norm(parameters_to_optimize, 10)
-
             if it % grad_iter == 0:
                 optimizer.step()
                 scheduler.step()
@@ -231,17 +217,13 @@ class FewShotREFramework:
                 model.train()
                 if acc > best_acc:
                     print('Best checkpoint')
-                    if not os.path.exists(ckpt_dir):
-                        os.makedirs(ckpt_dir)
-                    save_path = os.path.join(ckpt_dir, model_name + ".pth.tar")
-                    torch.save({'state_dict': model.state_dict()}, save_path)
+                    torch.save({'state_dict': model.state_dict()}, save_ckpt)
                     best_acc = acc
                 
         print("\n####################\n")
         print("Finish training " + model_name)
         # test_acc = self.eval(model, B, N_for_eval, K, Q, test_iter, ckpt=os.path.join(ckpt_dir, model_name + '.pth.tar'))
         # print("Test accuracy: {}".format(test_acc))
-        return model
 
     def eval(self,
             model,
