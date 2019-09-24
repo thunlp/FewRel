@@ -11,7 +11,7 @@ sbatch*
 *.ipynb
 
 # data
-pretrain/glove*
+pretrain/glove
 pretrain/bert-base-uncased
 
 # virtualenv
