@@ -11,12 +11,16 @@ sbatch*
 *.ipynb
 
 # data
-_processed_data
-data/glove*
-data/bert-base-uncased
+pretrain/glove*
+pretrain/bert-base-uncased
 
 # virtualenv
 .virtual
 
-result.txt
-result_detail.txt
+# result
+result*
+
+# test data
+./data/test_wiki.json
+./data/test_pubmed.json
+./data/train_wiki+pubmed.json
