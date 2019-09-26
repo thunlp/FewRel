@@ -130,10 +130,9 @@ class FewShotREFramework:
         '''
         print("Start training...")
     
-        model.cuda()
         # Init
         if bert_optim:
-            print('use bert optim!')
+            print('Use bert optim!')
             parameters_to_optimize = list(model.named_parameters())
             no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
             parameters_to_optimize = [
@@ -144,13 +143,13 @@ class FewShotREFramework:
                 ]
             optimizer = AdamW(parameters_to_optimize, lr=2e-5, correct_bias=False)
             scheduler = WarmupLinearSchedule(optimizer, warmup_steps=warmup_step, t_total=train_iter) 
-            lr_step_size = 1000000000
         else:
             parameters_to_optimize = filter(lambda x:x.requires_grad, 
                     model.parameters())
             optimizer = optimizer(parameters_to_optimize, 
                     learning_rate, weight_decay=weight_decay)
             scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=lr_step_size)
+
         if load_ckpt:
             state_dict = self.__load_model__(load_ckpt)['state_dict']
             own_state = model.state_dict()
@@ -158,7 +157,6 @@ class FewShotREFramework:
                 if name not in own_state:
                     continue
                 own_state[name].copy_(param)
-            #start_iter = checkpoint['iter'] + 1
             start_iter = 0
         else:
             start_iter = 0
@@ -206,11 +204,6 @@ class FewShotREFramework:
             sys.stdout.write('step: {0:4} | loss: {1:2.6f}, accuracy: {2:3.2f}%'.format(it + 1, iter_loss / iter_sample, 100 * iter_right / iter_sample) +'\r')
             sys.stdout.flush()
 
-            if it % val_step == 0:
-                iter_loss = 0.
-                iter_right = 0.
-                iter_sample = 0.
-
             if (it + 1) % val_step == 0:
                 acc = self.eval(model, B, N_for_eval, K, Q, val_iter, 
                         na_rate=na_rate)
@@ -219,6 +212,9 @@ class FewShotREFramework:
                     print('Best checkpoint')
                     torch.save({'state_dict': model.state_dict()}, save_ckpt)
                     best_acc = acc
+                iter_loss = 0.
+                iter_right = 0.
+                iter_sample = 0.
                 
         print("\n####################\n")
         print("Finish training " + model_name)
