@@ -1,18 +1,20 @@
-from fewshot_re_kit.data_loader import get_loader
+from fewshot_re_kit.data_loader import get_loader, get_loader_pair
 from fewshot_re_kit.framework import FewShotREFramework
-from fewshot_re_kit.sentence_encoder import CNNSentenceEncoder, BERTSentenceEncoder
+from fewshot_re_kit.sentence_encoder import CNNSentenceEncoder, BERTSentenceEncoder, BERTPAIRSentenceEncoder
 import models
 from models.proto import Proto
 from models.gnn import GNN
 from models.snail import SNAIL
 from models.metanet import MetaNet
 from models.siamese import Siamese
+from models.pair import Pair
 import sys
 import torch
 from torch import optim, nn
 import numpy as np
 import json
 import argparse
+import os
 
 def main():
     parser = argparse.ArgumentParser()
@@ -66,6 +68,8 @@ def main():
            help='use nvidia apex fp16')
     parser.add_argument('--only_test', action='store_true',
            help='only test')
+    parser.add_argument('--pair', action='store_true',
+           help='use pair model')
 
     opt = parser.parse_args()
     trainN = opt.trainN
@@ -84,8 +88,8 @@ def main():
     
     if encoder_name == 'cnn':
         try:
-            glove_mat = np.load('./pretrain/glove/glove_mat.npy'),
-            glove_word2id = json.load(open('./pretrain/glove/glove_word2id.json')),
+            glove_mat = np.load('./pretrain/glove/glove_mat.npy')
+            glove_word2id = json.load(open('./pretrain/glove/glove_word2id.json'))
         except:
             raise Exception("Cannot find glove files. Run glove/download_glove.sh to download glove files.")
         sentence_encoder = CNNSentenceEncoder(
@@ -93,18 +97,31 @@ def main():
                 glove_word2id,
                 max_length)
     elif encoder_name == 'bert':
-        sentence_encoder = BERTSentenceEncoder(
-                './pretrain/bert-base-uncased',
-                max_length)
+        if opt.pair:
+            sentence_encoder = BERTPAIRSentenceEncoder(
+                    './pretrain/bert-base-uncased',
+                    max_length)
+        else:
+            sentence_encoder = BERTSentenceEncoder(
+                    './pretrain/bert-base-uncased',
+                    max_length)
     else:
         raise NotImplementedError
-
-    train_data_loader = get_loader(opt.train, sentence_encoder,
-            N=trainN, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
-    val_data_loader = get_loader(opt.val, sentence_encoder,
-            N=N, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
-    test_data_loader = get_loader(opt.test, sentence_encoder,
-            N=N, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
+    
+    if opt.pair:
+        train_data_loader = get_loader_pair(opt.train, sentence_encoder,
+                N=trainN, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
+        val_data_loader = get_loader_pair(opt.val, sentence_encoder,
+                N=N, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
+        test_data_loader = get_loader_pair(opt.test, sentence_encoder,
+                N=N, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
+    else:
+        train_data_loader = get_loader(opt.train, sentence_encoder,
+                N=trainN, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
+        val_data_loader = get_loader(opt.val, sentence_encoder,
+                N=N, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
+        test_data_loader = get_loader(opt.test, sentence_encoder,
+                N=N, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
     
     if opt.optim == 'sgd':
         optimizer = optim.SGD
@@ -132,9 +149,13 @@ def main():
         model = MetaNet(N, K, sentence_encoder.embedding, max_length)
     elif model_name == 'siamese':
         model = Siamese(sentence_encoder, hidden_size=opt.hidden_size, dropout=opt.dropout)
+    elif model_name == 'pair':
+        model = Pair(sentence_encoder, hidden_size=opt.hidden_size)
     else:
         raise NotImplementedError
-
+    
+    if not os.path.exists('checkpoint'):
+        os.mkdir('checkpoint')
     ckpt = 'checkpoint/{}.pth.tar'.format(prefix)
     if opt.save_ckpt:
         ckpt = opt.save_ckpt
@@ -150,7 +171,7 @@ def main():
 
         framework.train(model, prefix, batch_size, trainN, N, K, Q,
                 optimizer=optimizer, load_ckpt=opt.load_ckpt, save_ckpt=ckpt,
-                na_rate=opt.na_rate, val_step=opt.val_step, fp16=opt.fp16, 
+                na_rate=opt.na_rate, val_step=opt.val_step, fp16=opt.fp16, pair=opt.pair, 
                 train_iter=opt.train_iter, val_iter=opt.val_iter, bert_optim=bert_optim)
     else:
         ckpt = opt.load_ckpt
@@ -160,14 +181,17 @@ def main():
     total_test_round = 5
     for i in range(total_test_round):
         cur_acc = framework.eval(model, batch_size, N, K, Q, 3000, na_rate=opt.na_rate,
-                ckpt=ckpt)
+                ckpt=ckpt, pair=True)
         his_acc.append(cur_acc)
         acc += cur_acc
     acc /= total_test_round
+    nhis_acc = np.array(his_acc)
+    error = nhis_acc.std() * 1.96 / (nhis_acc.shape[0] ** 0.5)
+    print("RESULT: %.2f\\pm%.2f" % (acc * 100, error * 100))
 
     result_file = open('./result.txt', 'a+')
-    result_file.write("test data: %12s | model: %45s | acc: %.6f\n"
-            % (opt.test, prefix, acc))
+    result_file.write("test data: %12s | model: %45s | acc: %.6f\n | error: %.6f\n"
+            % (opt.test, prefix, acc, error))
 
     result_file = open('./result_detail.txt', 'a+')
     result_detail = {'test': opt.test, 'model': prefix, 'acc': acc, 

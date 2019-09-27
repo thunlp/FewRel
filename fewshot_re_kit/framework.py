@@ -111,7 +111,8 @@ class FewShotREFramework:
               warmup=True,
               warmup_step=300,
               grad_iter=1,
-              fp16=False):
+              fp16=False,
+              pair=False):
         '''
         model: a FewShotREModel instance
         model_name: Name of the model
@@ -174,17 +175,26 @@ class FewShotREFramework:
         iter_right = 0.0
         iter_sample = 0.0
         for it in range(start_iter, start_iter + train_iter):
-            support, query, label = next(self.train_data_loader)
-            if torch.cuda.is_available():
-                for k in support:
-                    support[k] = support[k].cuda()
-                for k in query:
-                    query[k] = query[k].cuda()
-                label = label.cuda()
-            logits, pred = model(support, query, N_for_train, K, 
-                    Q * N_for_train + na_rate * Q)
-            loss = model.module.loss(logits, label) / float(grad_iter)
-            right = model.module.accuracy(pred, label)
+            if pair:
+                batch, label = next(self.train_data_loader)
+                if torch.cuda.is_available():
+                    for k in batch:
+                        batch[k] = batch[k].cuda()
+                    label = label.cuda()
+                logits, pred = model(batch, N_for_train, K, 
+                        Q * N_for_train + na_rate * Q)
+            else:
+                support, query, label = next(self.train_data_loader)
+                if torch.cuda.is_available():
+                    for k in support:
+                        support[k] = support[k].cuda()
+                    for k in query:
+                        query[k] = query[k].cuda()
+                    label = label.cuda()
+                logits, pred = model(support, query, N_for_train, K, 
+                        Q * N_for_train + na_rate * Q)
+            loss = model.loss(logits, label) / float(grad_iter)
+            right = model.accuracy(pred, label)
             if fp16:
                 with amp.scale_loss(loss, optimizer) as scaled_loss:
                     scaled_loss.backward()
@@ -206,7 +216,7 @@ class FewShotREFramework:
 
             if (it + 1) % val_step == 0:
                 acc = self.eval(model, B, N_for_eval, K, Q, val_iter, 
-                        na_rate=na_rate)
+                        na_rate=na_rate, pair=pair)
                 model.train()
                 if acc > best_acc:
                     print('Best checkpoint')
@@ -218,14 +228,13 @@ class FewShotREFramework:
                 
         print("\n####################\n")
         print("Finish training " + model_name)
-        # test_acc = self.eval(model, B, N_for_eval, K, Q, test_iter, ckpt=os.path.join(ckpt_dir, model_name + '.pth.tar'))
-        # print("Test accuracy: {}".format(test_acc))
 
     def eval(self,
             model,
             B, N, K, Q,
             eval_iter,
             na_rate=0,
+            pair=False,
             ckpt=None): 
         '''
         model: a FewShotREModel instance
@@ -255,16 +264,24 @@ class FewShotREFramework:
         iter_sample = 0.0
         with torch.no_grad():
             for it in range(eval_iter):
-                support, query, label = next(eval_dataset)
-                if torch.cuda.is_available():
-                    for k in support:
-                        support[k] = support[k].cuda()
-                    for k in query:
-                        query[k] = query[k].cuda()
-                    label = label.cuda()
+                if pair:
+                    batch, label = next(eval_dataset)
+                    if torch.cuda.is_available():
+                        for k in batch:
+                            batch[k] = batch[k].cuda()
+                        label = label.cuda()
+                    logits, pred = model(batch, N, K, Q * N + Q * na_rate)
+                else:
+                    support, query, label = next(eval_dataset)
+                    if torch.cuda.is_available():
+                        for k in support:
+                            support[k] = support[k].cuda()
+                        for k in query:
+                            query[k] = query[k].cuda()
+                        label = label.cuda()
+                    logits, pred = model(support, query, N, K, Q * N + Q * na_rate)
 
-                logits, pred = model(support, query, N, K, Q * N + Q * na_rate)
-                right = model.module.accuracy(pred, label)
+                right = model.accuracy(pred, label)
                 iter_right += self.item(right.data)
                 iter_sample += 1
 
