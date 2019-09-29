@@ -8,6 +8,7 @@ from models.snail import SNAIL
 from models.metanet import MetaNet
 from models.siamese import Siamese
 from models.pair import Pair
+from models.d import Discriminator
 import sys
 import torch
 from torch import optim, nn
@@ -24,6 +25,8 @@ def main():
             help='val file')
     parser.add_argument('--test', default='test_wiki',
             help='test file')
+    parser.add_argument('--adv', default=None,
+            help='adv file')
     parser.add_argument('--trainN', default=10, type=int,
             help='N in train')
     parser.add_argument('--N', default=5, type=int,
@@ -115,6 +118,9 @@ def main():
                 N=N, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
         test_data_loader = get_loader_pair(opt.test, sentence_encoder,
                 N=N, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
+        if opt.adv:
+            adv_data_loader = get_loader_pair(opt.adv, sentence_encoder,
+                    N=N, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
     else:
         train_data_loader = get_loader(opt.train, sentence_encoder,
                 N=trainN, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
@@ -122,19 +128,28 @@ def main():
                 N=N, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
         test_data_loader = get_loader(opt.test, sentence_encoder,
                 N=N, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
-    
+        if opt.adv:
+           adv_data_loader = get_loader(opt.adv, sentence_encoder,
+                N=N, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
+   
     if opt.optim == 'sgd':
-        optimizer = optim.SGD
+        pytorch_optim = optim.SGD
     elif opt.optim == 'adam':
-        optimizer = optim.Adam
+        pytorch_optim = optim.Adam
     elif opt.optim == 'bert_adam':
         from pytorch_transformers import AdamW
-        optimizer = AdamW
+        pytorch_optim = AdamW
     else:
         raise NotImplementedError
-    framework = FewShotREFramework(train_data_loader, val_data_loader, test_data_loader)
+    if opt.adv:
+        d = Discriminator(opt.hidden_size)
+        framework = FewShotREFramework(train_data_loader, val_data_loader, test_data_loader, adv_data_loader, adv=opt.adv, d=d)
+    else:
+        framework = FewShotREFramework(train_data_loader, val_data_loader, test_data_loader)
         
     prefix = '-'.join([model_name, encoder_name, opt.train, opt.val, str(N), str(K)])
+    if opt.adv is not None:
+        prefix += '-adv_' + opt.adv
     if opt.na_rate != 0:
         prefix += '-na{}'.format(opt.na_rate)
     
@@ -170,7 +185,7 @@ def main():
             bert_optim = False
 
         framework.train(model, prefix, batch_size, trainN, N, K, Q,
-                optimizer=optimizer, load_ckpt=opt.load_ckpt, save_ckpt=ckpt,
+                pytorch_optim=pytorch_optim, load_ckpt=opt.load_ckpt, save_ckpt=ckpt,
                 na_rate=opt.na_rate, val_step=opt.val_step, fp16=opt.fp16, pair=opt.pair, 
                 train_iter=opt.train_iter, val_iter=opt.val_iter, bert_optim=bert_optim)
     else:
@@ -180,8 +195,7 @@ def main():
     his_acc = []
     total_test_round = 5
     for i in range(total_test_round):
-        cur_acc = framework.eval(model, batch_size, N, K, Q, 3000, na_rate=opt.na_rate,
-                ckpt=ckpt, pair=True)
+        cur_acc = framework.eval(model, batch_size, N, K, Q, 3000, na_rate=opt.na_rate, ckpt=ckpt, pair=opt.pair)
         his_acc.append(cur_acc)
         acc += cur_acc
     acc /= total_test_round

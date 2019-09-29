@@ -57,10 +57,9 @@ class FewShotREModel(nn.Module):
         '''
         return torch.mean((pred.view(-1) == label.view(-1)).type(torch.FloatTensor))
 
-    
 class FewShotREFramework:
 
-    def __init__(self, train_data_loader, val_data_loader, test_data_loader):
+    def __init__(self, train_data_loader, val_data_loader, test_data_loader, adv_data_loader=None, adv=False, d=None):
         '''
         train_data_loader: DataLoader for training.
         val_data_loader: DataLoader for validating.
@@ -69,6 +68,12 @@ class FewShotREFramework:
         self.train_data_loader = train_data_loader
         self.val_data_loader = val_data_loader
         self.test_data_loader = test_data_loader
+        self.adv_data_loader = adv_data_loader
+        self.adv = adv
+        if adv:
+            self.adv_cost = nn.CrossEntropyLoss()
+            self.d = d
+            self.d.cuda()
     
     def __load_model__(self, ckpt):
         '''
@@ -106,13 +111,15 @@ class FewShotREFramework:
               test_iter=3000,
               load_ckpt=None,
               save_ckpt=None,
-              optimizer=optim.SGD,
+              pytorch_optim=optim.SGD,
               bert_optim=False,
               warmup=True,
               warmup_step=300,
               grad_iter=1,
               fp16=False,
-              pair=False):
+              pair=False,
+              adv_dis_lr=5e-1,
+              adv_enc_lr=1e-1):
         '''
         model: a FewShotREModel instance
         model_name: Name of the model
@@ -143,13 +150,18 @@ class FewShotREFramework:
                     if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
                 ]
             optimizer = AdamW(parameters_to_optimize, lr=2e-5, correct_bias=False)
+            if self.adv:
+                optimizer_encoder = AdamW(parameters_to_optimize, lr=1e-5, correct_bias=False)
             scheduler = WarmupLinearSchedule(optimizer, warmup_steps=warmup_step, t_total=train_iter) 
         else:
-            parameters_to_optimize = filter(lambda x:x.requires_grad, 
-                    model.parameters())
-            optimizer = optimizer(parameters_to_optimize, 
+            optimizer = pytorch_optim(model.parameters(),
                     learning_rate, weight_decay=weight_decay)
+            if self.adv:
+                optimizer_encoder = pytorch_optim(model.parameters(), lr=adv_enc_lr)
             scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=lr_step_size)
+
+        if self.adv:
+            optimizer_dis = pytorch_optim(self.d.parameters(), lr=adv_dis_lr)
 
         if load_ckpt:
             state_dict = self.__load_model__(load_ckpt)['state_dict']
@@ -167,12 +179,16 @@ class FewShotREFramework:
             model, optimizer = amp.initialize(model, optimizer, opt_level='O1')
 
         model.train()
+        if self.adv:
+            self.d.train()
 
         # Training
         best_acc = 0
         not_best_count = 0 # Stop training after several epochs without improvement.
         iter_loss = 0.0
+        iter_loss_dis = 0.0
         iter_right = 0.0
+        iter_right_dis = 0.0
         iter_sample = 0.0
         for it in range(start_iter, start_iter + train_iter):
             if pair:
@@ -191,8 +207,9 @@ class FewShotREFramework:
                     for k in query:
                         query[k] = query[k].cuda()
                     label = label.cuda()
-                logits, pred = model(support, query, N_for_train, K, 
-                        Q * N_for_train + na_rate * Q)
+
+                logits, pred  = model(support, query, 
+                        N_for_train, K, Q * N_for_train + na_rate * Q)
             loss = model.loss(logits, label) / float(grad_iter)
             right = model.accuracy(pred, label)
             if fp16:
@@ -201,17 +218,63 @@ class FewShotREFramework:
                 # torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), 1)
             else:
                 loss.backward()
-                # torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
-
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 10)
+            
             if it % grad_iter == 0:
                 optimizer.step()
                 scheduler.step()
                 optimizer.zero_grad()
             
+            # Adv part
+            if self.adv:
+                support_adv, query_adv, label_adv = next(self.adv_data_loader)
+                if torch.cuda.is_available():
+                    for k in support_adv:
+                        support_adv[k] = support_adv[k].cuda()
+                    for k in query_adv:
+                        query_adv[k] = query_adv[k].cuda()
+
+                support_emb = model.sentence_encoder(support)
+                query_emb = model.sentence_encoder(query)
+
+                support_adv_emb = model.sentence_encoder(support_adv)
+                query_adv_emb = model.sentence_encoder(query_adv)
+
+                features_ori = torch.cat([support_emb, query_emb], 0)
+                features_adv = torch.cat([support_adv_emb, query_adv_emb], 0)
+                features = torch.cat([features_ori, features_adv], 0) 
+                total = features.size(0)
+                dis_labels = torch.cat([torch.zeros((total//2)).long().cuda(),
+                    torch.ones((total//2)).long().cuda()], 0)
+                dis_logits = self.d(features)
+                loss_dis = self.adv_cost(dis_logits, dis_labels)
+                _, pred = dis_logits.max(-1)
+                right_dis = float((pred == dis_labels).long().sum()) / float(total)
+                
+                loss_dis.backward(retain_graph=True)
+                optimizer_dis.step()
+                optimizer_dis.zero_grad()
+
+                loss_encoder = self.adv_cost(dis_logits, 1 - dis_labels)
+    
+                loss_encoder.backward(retain_graph=True)
+                optimizer_encoder.step()
+                optimizer_encoder.zero_grad()
+
+                iter_loss_dis += self.item(loss_dis.data)
+                iter_right_dis += right_dis
+
             iter_loss += self.item(loss.data)
             iter_right += self.item(right.data)
             iter_sample += 1
-            sys.stdout.write('step: {0:4} | loss: {1:2.6f}, accuracy: {2:3.2f}%'.format(it + 1, iter_loss / iter_sample, 100 * iter_right / iter_sample) +'\r')
+            if self.adv:
+                sys.stdout.write('step: {0:4} | loss: {1:2.6f}, accuracy: {2:3.2f}%, dis_loss: {3:2.6f}, dis_acc: {4:2.6f}'
+                    .format(it + 1, iter_loss / iter_sample, 
+                        100 * iter_right / iter_sample,
+                        iter_loss_dis / iter_sample,
+                        100 * iter_right_dis / iter_sample) +'\r')
+            else:
+                sys.stdout.write('step: {0:4} | loss: {1:2.6f}, accuracy: {2:3.2f}%'.format(it + 1, iter_loss / iter_sample, 100 * iter_right / iter_sample) +'\r')
             sys.stdout.flush()
 
             if (it + 1) % val_step == 0:
@@ -223,7 +286,9 @@ class FewShotREFramework:
                     torch.save({'state_dict': model.state_dict()}, save_ckpt)
                     best_acc = acc
                 iter_loss = 0.
+                iter_loss_dis = 0.
                 iter_right = 0.
+                iter_right_dis = 0.
                 iter_sample = 0.
                 
         print("\n####################\n")

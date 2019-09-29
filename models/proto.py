@@ -28,10 +28,10 @@ class Proto(fewshot_re_kit.framework.FewShotREModel):
         K: Num of instances for each class in the support set
         Q: Num of instances in the query set
         '''
-        support = self.sentence_encoder(support) # (B * N * K, D), where D is the hidden size
-        query = self.sentence_encoder(query) # (B * total_Q, D)
-        support = self.drop(support)
-        query = self.drop(query)
+        support_emb = self.sentence_encoder(support) # (B * N * K, D), where D is the hidden size
+        query_emb = self.sentence_encoder(query) # (B * total_Q, D)
+        support = self.drop(support_emb)
+        query = self.drop(query_emb)
         support = support.view(-1, N, K, self.hidden_size) # (B, N, K, D)
         query = query.view(-1, total_Q, self.hidden_size) # (B, total_Q, D)
 
@@ -45,6 +45,7 @@ class Proto(fewshot_re_kit.framework.FewShotREModel):
         logits = torch.cat([logits, minn.unsqueeze(2) - 1], 2) # (B, total_Q, N + 1)
         _, pred = torch.max(logits.view(-1, N+1), 1)
         return logits, pred
+
     
     
     
