@@ -118,7 +118,7 @@ class FewShotREFramework:
               grad_iter=1,
               fp16=False,
               pair=False,
-              adv_dis_lr=5e-1,
+              adv_dis_lr=1e-1,
               adv_enc_lr=1e-1):
         '''
         model: a FewShotREModel instance
