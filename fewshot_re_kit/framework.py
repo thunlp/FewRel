@@ -215,10 +215,10 @@ class FewShotREFramework:
             if fp16:
                 with amp.scale_loss(loss, optimizer) as scaled_loss:
                     scaled_loss.backward()
-                # torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), 1)
+                # torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), 10)
             else:
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), 10)
+                # torch.nn.utils.clip_grad_norm_(model.parameters(), 10)
             
             if it % grad_iter == 0:
                 optimizer.step()
@@ -254,11 +254,13 @@ class FewShotREFramework:
                 loss_dis.backward(retain_graph=True)
                 optimizer_dis.step()
                 optimizer_dis.zero_grad()
+                optimizer_encoder.zero_grad()
 
                 loss_encoder = self.adv_cost(dis_logits, 1 - dis_labels)
     
                 loss_encoder.backward(retain_graph=True)
                 optimizer_encoder.step()
+                optimizer_dis.zero_grad()
                 optimizer_encoder.zero_grad()
 
                 iter_loss_dis += self.item(loss_dis.data)

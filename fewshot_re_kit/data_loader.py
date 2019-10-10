@@ -217,7 +217,7 @@ def collate_fn_pair(data):
     return batch_set, batch_label
 
 def get_loader_pair(name, encoder, N, K, Q, batch_size, 
-        num_workers=16, collate_fn=collate_fn_pair, na_rate=0, root='./data'):
+        num_workers=8, collate_fn=collate_fn_pair, na_rate=0, root='./data'):
     dataset = FewRelDatasetPair(name, encoder, N, K, Q, na_rate, root)
     data_loader = data.DataLoader(dataset=dataset,
             batch_size=batch_size,
