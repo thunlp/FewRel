@@ -1,6 +1,6 @@
 # FewRel Dataset, Toolkits and Baseline Models
 
-**Update: We have released FewRel 2.0! The dataset and codes for FewRel 2.0 has already been uploaded to this repo. The instruction and evaluation website will be updated in a few days.**
+**Update: We have released FewRel 2.0! The dataset and codes for FewRel 2.0 have already been uploaded to this repo. The instruction and evaluation website will be updated in a few days.**
 
 FewRel is a large-scale few-shot relation extraction dataset, which contains 70000 natural language sentences expressing 100 different relations. This dataset is presented in the our EMNLP 2018 paper [FewRel: A Large-Scale Few-Shot Relation Classification Dataset with State-of-the-Art Evaluation](https://github.com/thunlp/FewRel/blob/master/paper/fewrel.pdf).
 
