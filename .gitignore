@@ -21,7 +21,7 @@ pretrain/bert-base-uncased
 result*
 
 # test data
-./data/test_wiki.json
-./data/test_pubmed.json
-./data/train_wiki+pubmed.json
-./data/pubmed.json
+data/test_wiki.json
+data/test_pubmed.json
+data/train_wiki+pubmed.json
+data/pubmed.json

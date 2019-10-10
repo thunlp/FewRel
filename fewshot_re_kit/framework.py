@@ -227,21 +227,13 @@ class FewShotREFramework:
             
             # Adv part
             if self.adv:
-                support_adv, query_adv, label_adv = next(self.adv_data_loader)
+                support_adv = next(self.adv_data_loader)
                 if torch.cuda.is_available():
                     for k in support_adv:
                         support_adv[k] = support_adv[k].cuda()
-                    for k in query_adv:
-                        query_adv[k] = query_adv[k].cuda()
 
-                support_emb = model.sentence_encoder(support)
-                query_emb = model.sentence_encoder(query)
-
-                support_adv_emb = model.sentence_encoder(support_adv)
-                query_adv_emb = model.sentence_encoder(query_adv)
-
-                features_ori = torch.cat([support_emb, query_emb], 0)
-                features_adv = torch.cat([support_adv_emb, query_adv_emb], 0)
+                features_ori = model.sentence_encoder(support)
+                features_adv = model.sentence_encoder(support_adv)
                 features = torch.cat([features_ori, features_adv], 0) 
                 total = features.size(0)
                 dis_labels = torch.cat([torch.zeros((total//2)).long().cuda(),

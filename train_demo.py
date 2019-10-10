@@ -1,4 +1,4 @@
-from fewshot_re_kit.data_loader import get_loader, get_loader_pair
+from fewshot_re_kit.data_loader import get_loader, get_loader_pair, get_loader_unsupervised
 from fewshot_re_kit.framework import FewShotREFramework
 from fewshot_re_kit.sentence_encoder import CNNSentenceEncoder, BERTSentenceEncoder, BERTPAIRSentenceEncoder
 import models
@@ -118,9 +118,6 @@ def main():
                 N=N, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
         test_data_loader = get_loader_pair(opt.test, sentence_encoder,
                 N=N, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
-        if opt.adv:
-            adv_data_loader = get_loader_pair(opt.adv, sentence_encoder,
-                    N=N, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
     else:
         train_data_loader = get_loader(opt.train, sentence_encoder,
                 N=trainN, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
@@ -129,8 +126,8 @@ def main():
         test_data_loader = get_loader(opt.test, sentence_encoder,
                 N=N, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
         if opt.adv:
-           adv_data_loader = get_loader(opt.adv, sentence_encoder,
-                N=N, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
+           adv_data_loader = get_loader_unsupervised(opt.adv, sentence_encoder,
+                N=trainN, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
    
     if opt.optim == 'sgd':
         pytorch_optim = optim.SGD
