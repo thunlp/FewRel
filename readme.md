@@ -1,6 +1,6 @@
 # FewRel Dataset, Toolkits and Baseline Models
 
-FewRel is a large-scale few-shot relation extraction dataset, which contains more than one hundred relations and tens of thousands annotated instances cross different domains. Our dataset is presented in our EMNLP 2018 paper [FewRel: A Large-Scale Few-Shot Relation Classification Dataset with State-of-the-Art Evaluation](https://www.aclweb.org/anthology/D18-1514.pdf) and a following-up version is presented in our EMNLP 2019 paper [FewRel 2.0: Towards More Challenging Few-Shot Relation Classification](https://www.aclweb.org/anthology/D19-1649.pdf).
+FewRel is a large-scale few-shot relation extraction dataset, which contains more than one hundred relations and tens of thousands of annotated instances cross different domains. Our dataset is presented in our EMNLP 2018 paper [FewRel: A Large-Scale Few-Shot Relation Classification Dataset with State-of-the-Art Evaluation](https://www.aclweb.org/anthology/D18-1514.pdf) and a following-up version is presented in our EMNLP 2019 paper [FewRel 2.0: Towards More Challenging Few-Shot Relation Classification](https://www.aclweb.org/anthology/D19-1649.pdf).
 
 Based on our dataset and designed few-shot settings, we have two different benchmarks:
 
