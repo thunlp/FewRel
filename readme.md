@@ -1,42 +1,77 @@
 # FewRel Dataset, Toolkits and Baseline Models
 
-**Update: We have released FewRel 2.0! The paper, dataset and codes for FewRel 2.0 have already been uploaded to this repo. The evaluation website and instructions will be updated in a few days.**
+FewRel is a large-scale few-shot relation extraction dataset, which contains more than one hundred relations and tens of thousands annotated instances cross different domains. Our dataset is presented in our EMNLP 2018 paper [FewRel: A Large-Scale Few-Shot Relation Classification Dataset with State-of-the-Art Evaluation](https://www.aclweb.org/anthology/D18-1514.pdf) and a following-up version is presented in our EMNLP 2019 paper [FewRel 2.0: Towards More Challenging Few-Shot Relation Classification](https://www.aclweb.org/anthology/D19-1649.pdf).
 
-FewRel is a large-scale few-shot relation extraction dataset, which contains 70000 natural language sentences expressing 100 different relations. This dataset is presented in the our EMNLP 2018 paper [FewRel: A Large-Scale Few-Shot Relation Classification Dataset with State-of-the-Art Evaluation](https://github.com/thunlp/FewRel/blob/master/paper/fewrel.pdf).
+Based on our dataset and designed few-shot settings, we have two different benchmarks:
 
-More info at https://thunlp.github.io/fewrel.html .
+* [FewRel 1.0](https://thunlp.github.io/fewrel): This is the first one to incorporate few-shot learning with relation extraction, where your model need to handle both the few-shot challenge and extracting entity relations from plain text. This benchmark provides a training dataset with 64 relations and a validation set with 16 relations. Once you submit your code to our [benchmark website](https://thunlp.github.io/fewrel), it will be evaluated on a hidden test set with 20 relations. Each relation has 100 human-annotated instances. 
+
+* FewRel 2.0: We found out that there are two long-neglected aspects in previous few-shot research: (1) How well models can transfer across different domains. (2) Can few-shot models detect instances belonging to none of the given few-shot classes. To dig deeper in these two aspects, we propose the 2.0 version of our dataset, with newly-added **domain adaptation (DA)** and **none-of-the-above (NOTA) detection** challenges. Find our more in our [paper](https://www.aclweb.org/anthology/D19-1649.pdf) and **the evaluation website and submitting manual will be online shortly!**
 
 ## Citing
 If you used our data, toolkits or baseline models, please kindly cite our paper:
 ```
-@inproceedings{han2018fewrel,
-               title={FewRel:A Large-Scale Supervised Few-Shot Relation Classification Dataset with State-of-the-Art Evaluation},
-               author={Han, Xu and Zhu, Hao and Yu, Pengfei and Wang, Ziyun and Yao, Yuan and Liu, Zhiyuan and Sun, Maosong},
-               booktitle={EMNLP},
-               year={2018}
+@inproceedings{han-etal-2018-fewrel,
+    title = "{F}ew{R}el: A Large-Scale Supervised Few-Shot Relation Classification Dataset with State-of-the-Art Evaluation",
+    author = "Han, Xu and Zhu, Hao and Yu, Pengfei and Wang, Ziyun and Yao, Yuan and Liu, Zhiyuan and Sun, Maosong",
+    booktitle = "Proceedings of the 2018 Conference on Empirical Methods in Natural Language Processing",
+    month = oct # "-" # nov,
+    year = "2018",
+    address = "Brussels, Belgium",
+    publisher = "Association for Computational Linguistics",
+    url = "https://www.aclweb.org/anthology/D18-1514",
+    doi = "10.18653/v1/D18-1514",
+    pages = "4803--4809"
+}
+
+@inproceedings{gao-etal-2019-fewrel,
+    title = "{F}ew{R}el 2.0: Towards More Challenging Few-Shot Relation Classification",
+    author = "Gao, Tianyu and Han, Xu and Zhu, Hao and Liu, Zhiyuan and Li, Peng and Sun, Maosong and Zhou, Jie",
+    booktitle = "Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing and the 9th International Joint Conference on Natural Language Processing (EMNLP-IJCNLP)",
+    month = nov,
+    year = "2019",
+    address = "Hong Kong, China",
+    publisher = "Association for Computational Linguistics",
+    url = "https://www.aclweb.org/anthology/D19-1649",
+    doi = "10.18653/v1/D19-1649",
+    pages = "6251--6256"
 }
 ```
 
-
-If you have questions about any part of the paper, submission, leaderboard, codes, data, please e-mail zhuhao15@mails.tsinghua.edu.cn.
+If you have questions about any part of the paper, submission, leaderboard, codes, data, please e-mail `gaotianyu1350@126.com`.
 
 ## Contributions
 
-Hao Zhu first proposed this problem and proposed the way to build the dataset and the baseline system; Ziyuan Wang built and maintained the crowdsourcing website; Yuan Yao helped download the original data and conducted preprocess; 
+For FewRel 1.0, Hao Zhu first proposed this problem and proposed the way to build the dataset and the baseline system; Ziyuan Wang built and maintained the crowdsourcing website; Yuan Yao helped download the original data and conducted preprocess; 
 Xu Han, Hao Zhu, Pengfei Yu and Ziyun Wang implemented baselines and wrote the paper together; Zhiyuan Liu provided thoughtful advice and funds through the whole project. The order of the first four authors are determined by dice rolling. 
 
 ## Dataset and Pretrain files
 
 The dataset has already be contained in the github repo. However, due to the large size, glove files (pre-trained word embeddings) and BERT pretrain checkpoint are not included. Please download `pretrain.tar` from [Tsinghua Cloud](https://cloud.tsinghua.edu.cn/f/58f57bda00eb40be8d10/?dl=1) and put it under the root. Then run `tar xvf pretrain.tar` to decompress it.
 
+**Note: We did not release the test dataset for both FewRel 1.0 and 2.0 for fair comparison. We recommend you to evaluate your models on the validation set first, and then submit it to our evaluation websites (which you can find above).** 
+
 ## Usage
+
+**To help you get started more easily, we are now writing a manual for training and evaluating few-shot models. The manual will be released soon here.**
 
 To run our baseline models, use command
 
 ```bash
-python train_demo.py {MODEL_NAME}
+python train_demo.py
 ```
 
-replace `{MODEL_NAME}` with `proto`, `metanet`, `gnn` or `snail`.
+This will start the training and evaluating process of Prototypical Networks in a 5-way 5-shot setting. You can also use different args to start different process. Some of them are here:
+
+* `train / val / test`: Specify the training / validation / test set. For example, if you use `train_wiki` for `train`, the program will load `data/train_wiki.json` for training. You should always use `train_wiki` for training and `val_wiki` (FewRel 1.0 and FewRel 2.0 NOTA challenge) or `val_pubmed` (FewRel 2.0 DA challenge) for validation.
+* `trainN`: N in N-way K-shot. `trainN` is the specific N in training process.
+* `N`: N in N-way K-shot.
+* `K`: K in N-way K-shot.
+* `Q`: Sample Q query instances for each relation.
+* `model`: Which model to use. The default one is `proto`, standing for Prototypical Networks. Note that if you use the **PAIR** model from our paper [FewRel 2.0](https://www.aclweb.org/anthology/D19-1649.pdf), you should also use `--encoder bert --pair`.
+* `encoder`: Which encoder to use. You can choose `cnn` or `bert`. 
+* `na_rate`: NA rate for FewRel 2.0 none-of-the-above (NOTA) detection. Note that here `na_rate` specifies the rate between Q for NOTA and Q for positive. For example, `na_rate=0` means the normal setting, `na_rate=1,2,5` corresponds to NA rate = 15%, 30% and 50% in 5-way settings.
+
+There are also many args for training (like `batch_size` and `lr`) and you can find more details in our codes.
 
 
