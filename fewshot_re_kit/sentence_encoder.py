@@ -6,7 +6,7 @@ import numpy as np
 import os
 from torch import optim
 from . import network
-from pytorch_transformers import BertTokenizer, BertModel, BertForMaskedLM, BertForSequenceClassification
+from transformers import BertTokenizer, BertModel, BertForMaskedLM, BertForSequenceClassification
 
 class CNNSentenceEncoder(nn.Module):
 
@@ -121,7 +121,7 @@ class BERTPAIRSentenceEncoder(nn.Module):
         self.tokenizer = BertTokenizer.from_pretrained(pretrain_path)
 
     def forward(self, inputs):
-        x = self.bert(inputs['word'], inputs['seg'], attention_mask=inputs['mask'])[0]
+        x = self.bert(inputs['word'], token_type_ids=inputs['seg'], attention_mask=inputs['mask'])[0]
         return x
     
     def tokenize(self, raw_tokens, pos_head, pos_tail):
