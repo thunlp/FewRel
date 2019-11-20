@@ -38,9 +38,11 @@ def main():
     parser.add_argument('--batch_size', default=4, type=int,
             help='batch size')
     parser.add_argument('--train_iter', default=30000, type=int,
-            help='num of epochs training')
+            help='num of iters in training')
     parser.add_argument('--val_iter', default=1000, type=int,
-            help='num of epochs training')
+            help='num of iters in validation')
+    parser.add_argument('--test_iter', default=3000, type=int,
+            help='num of iters in testing')
     parser.add_argument('--val_step', default=2000, type=int,
            help='val after training how many iters')
     parser.add_argument('--model', default='proto',
@@ -192,7 +194,7 @@ def main():
     his_acc = []
     total_test_round = 5
     for i in range(total_test_round):
-        cur_acc = framework.eval(model, batch_size, N, K, Q, 3000, na_rate=opt.na_rate, ckpt=ckpt, pair=opt.pair)
+        cur_acc = framework.eval(model, batch_size, N, K, Q, args.test_iter, na_rate=opt.na_rate, ckpt=ckpt, pair=opt.pair)
         his_acc.append(cur_acc)
         acc += cur_acc
     acc /= total_test_round
