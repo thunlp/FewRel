@@ -194,7 +194,7 @@ def main():
     his_acc = []
     total_test_round = 5
     for i in range(total_test_round):
-        cur_acc = framework.eval(model, batch_size, N, K, Q, args.test_iter, na_rate=opt.na_rate, ckpt=ckpt, pair=opt.pair)
+        cur_acc = framework.eval(model, batch_size, N, K, Q, opt.test_iter, na_rate=opt.na_rate, ckpt=ckpt, pair=opt.pair)
         his_acc.append(cur_acc)
         acc += cur_acc
     acc /= total_test_round
