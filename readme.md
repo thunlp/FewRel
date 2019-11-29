@@ -74,4 +74,47 @@ This will start the training and evaluating process of Prototypical Networks in 
 
 There are also many args for training (like `batch_size` and `lr`) and you can find more details in our codes.
 
+## Reproduction
 
+**BERT-PAIR for FewRel 1.0**
+
+```bash
+python train_demo.py \
+    --trainN 5 --N 5 --K 1 --Q 1 \
+    --model pair --encoder bert --pair --hidden_size 768 --val_step 1000 \
+    --batch_size 4  --fp16 \
+```
+
+Note that `--fp16` requires Nvidia's [apex](https://github.com/NVIDIA/apex).
+
+|                   | 5 way 1 shot | 5 way 5 shot | 10 way 1 shot | 10 way 5 shot |
+|  ---------------  | -----------  | ------------- | ------------ | ------------- |
+| Val               | 85.66 | 89.48 | 76.84 | 81.76 |
+| Test              | 88.32 | 93.22 | 80.63 | 87.02 |
+
+**BERT-PAIR for None-of-the-Above (FewRel 2.0)**
+
+```bash
+python train_demo.py \
+    --trainN 5 --N 5 --K 1 --Q 1 \
+    --model pair --encoder bert --pair --hidden_size 768 --val_step 1000 \
+    --batch_size 4  --fp16 --na_rate 5 \
+```
+
+|                   | 5 way 1 shot | 5 way 5 shot | 10 way 1 shot | 10 way 5 shot |
+|  ---------------  | -----------  | ------------- | ------------ | ------------- |
+| Val               | 74.56        | 73.09         | 75.01        | 75.38         |
+| Test              | 76.73        | 80.31         | 83.32        | 84.64         |
+
+**Proto-CNN + Adversarial Training for Domain Adaptation (FewRel 2.0)**
+
+```bash
+python train_demo.py \
+    --val val_pubmed --adv pubmed_unsupervised --trainN 10 --N {} --K {} \ 
+    --model proto --encoder cnn --val_step 1000 \
+```
+
+|                   | 5 way 1 shot (0% NOTA) | 5 way 1 shot (50% NOTA) | 5 way 5 shot (0% NOTA) | 5 way 5 shot (50% NOTA) |
+|  ---------------  | -----------  | ------------- | ------------ | ------------- |
+| Val               | 48.73 | 64.38 | 34.82 | 50.39 |
+| Test              | 42.21 | 58.71 | 28.91 | 44.35 |
