@@ -101,7 +101,7 @@ python train_demo.py \
     --batch_size 4  --fp16 --na_rate 5 \
 ```
 
-|                   | 5 way 1 shot | 5 way 5 shot | 10 way 1 shot | 10 way 5 shot |
+|                   | 5 way 1 shot (0% NOTA) | 5 way 1 shot (50% NOTA) | 5 way 5 shot (0% NOTA) | 5 way 5 shot (50% NOTA) |
 |  ---------------  | -----------  | ------------- | ------------ | ------------- |
 | Val               | 74.56        | 73.09         | 75.01        | 75.38         |
 | Test              | 76.73        | 80.31         | 83.32        | 84.64         |
@@ -114,7 +114,7 @@ python train_demo.py \
     --model proto --encoder cnn --val_step 1000 \
 ```
 
-|                   | 5 way 1 shot (0% NOTA) | 5 way 1 shot (50% NOTA) | 5 way 5 shot (0% NOTA) | 5 way 5 shot (50% NOTA) |
+|                   | 5 way 1 shot | 5 way 5 shot | 10 way 1 shot | 10 way 5 shot |
 |  ---------------  | -----------  | ------------- | ------------ | ------------- |
 | Val               | 48.73 | 64.38 | 34.82 | 50.39 |
 | Test              | 42.21 | 58.71 | 28.91 | 44.35 |
