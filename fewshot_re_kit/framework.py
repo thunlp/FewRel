@@ -10,7 +10,7 @@ from torch import autograd, optim, nn
 from torch.autograd import Variable
 from torch.nn import functional as F
 # from pytorch_pretrained_bert import BertAdam
-from transformers import AdamW, WarmupLinearSchedule
+from transformers import AdamW, get_linear_schedule_with_warmup
 
 def warmup_linear(global_step, warmup_step):
     if global_step < warmup_step:
@@ -152,7 +152,7 @@ class FewShotREFramework:
             optimizer = AdamW(parameters_to_optimize, lr=2e-5, correct_bias=False)
             if self.adv:
                 optimizer_encoder = AdamW(parameters_to_optimize, lr=1e-5, correct_bias=False)
-            scheduler = WarmupLinearSchedule(optimizer, warmup_steps=warmup_step, t_total=train_iter) 
+            scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=warmup_step, num_training_steps=train_iter) 
         else:
             optimizer = pytorch_optim(model.parameters(),
                     learning_rate, weight_decay=weight_decay)
