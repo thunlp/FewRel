@@ -105,7 +105,7 @@ class BERTSentenceEncoder(nn.Module):
 
         # mask
         mask = np.zeros((self.max_length), dtype=np.int32)
-        mask[:len(indexed_tokens)] = 1
+        mask[:len(tokens)] = 1
 
         return indexed_tokens, pos1, pos2, mask
 
