@@ -41,7 +41,7 @@ def main():
             help='num of iters in training')
     parser.add_argument('--val_iter', default=1000, type=int,
             help='num of iters in validation')
-    parser.add_argument('--test_iter', default=3000, type=int,
+    parser.add_argument('--test_iter', default=10000, type=int,
             help='num of iters in testing')
     parser.add_argument('--val_step', default=2000, type=int,
            help='val after training how many iters')
@@ -190,26 +190,8 @@ def main():
     else:
         ckpt = opt.load_ckpt
 
-    acc = 0
-    his_acc = []
-    total_test_round = 5
-    for i in range(total_test_round):
-        cur_acc = framework.eval(model, batch_size, N, K, Q, opt.test_iter, na_rate=opt.na_rate, ckpt=ckpt, pair=opt.pair)
-        his_acc.append(cur_acc)
-        acc += cur_acc
-    acc /= total_test_round
-    nhis_acc = np.array(his_acc)
-    error = nhis_acc.std() * 1.96 / (nhis_acc.shape[0] ** 0.5)
-    print("RESULT: %.2f\\pm%.2f" % (acc * 100, error * 100))
+    acc = framework.eval(model, batch_size, N, K, Q, opt.test_iter, na_rate=opt.na_rate, ckpt=ckpt, pair=opt.pair)
+    print("RESULT: %.2f" % (acc * 100))
 
-    result_file = open('./result.txt', 'a+')
-    result_file.write("test data: %12s | model: %45s | acc: %.6f\n | error: %.6f\n"
-            % (opt.test, prefix, acc, error))
-
-    result_file = open('./result_detail.txt', 'a+')
-    result_detail = {'test': opt.test, 'model': prefix, 'acc': acc, 
-            'his': his_acc}
-    result_file.write("%s\n" % (json.dumps(result_detail)))
-    
 if __name__ == "__main__":
     main()
