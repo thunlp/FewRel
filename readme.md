@@ -1,12 +1,14 @@
 # FewRel Dataset, Toolkits and Baseline Models
 
+Our benchmark website: [https://thunlp.github.io/fewrel.html](https://thunlp.github.io/fewrel.html)
+
 FewRel is a large-scale few-shot relation extraction dataset, which contains more than one hundred relations and tens of thousands of annotated instances cross different domains. Our dataset is presented in our EMNLP 2018 paper [FewRel: A Large-Scale Few-Shot Relation Classification Dataset with State-of-the-Art Evaluation](https://www.aclweb.org/anthology/D18-1514.pdf) and a following-up version is presented in our EMNLP 2019 paper [FewRel 2.0: Towards More Challenging Few-Shot Relation Classification](https://www.aclweb.org/anthology/D19-1649.pdf).
 
 Based on our dataset and designed few-shot settings, we have two different benchmarks:
 
-* [FewRel 1.0](https://thunlp.github.io/fewrel): This is the first one to incorporate few-shot learning with relation extraction, where your model need to handle both the few-shot challenge and extracting entity relations from plain text. This benchmark provides a training dataset with 64 relations and a validation set with 16 relations. Once you submit your code to our [benchmark website](https://thunlp.github.io/fewrel), it will be evaluated on a hidden test set with 20 relations. Each relation has 100 human-annotated instances. 
+* FewRel 1.0: This is the first one to incorporate few-shot learning with relation extraction, where your model need to handle both the few-shot challenge and extracting entity relations from plain text. This benchmark provides a training dataset with 64 relations and a validation set with 16 relations. Once you submit your code to our [benchmark website](https://thunlp.github.io/1/fewrel1.html), it will be evaluated on a hidden test set with 20 relations. Each relation has 100 human-annotated instances. 
 
-* FewRel 2.0: We found out that there are two long-neglected aspects in previous few-shot research: (1) How well models can transfer across different domains. (2) Can few-shot models detect instances belonging to none of the given few-shot classes. To dig deeper in these two aspects, we propose the 2.0 version of our dataset, with newly-added **domain adaptation (DA)** and **none-of-the-above (NOTA) detection** challenges. Find our more in our [paper](https://www.aclweb.org/anthology/D19-1649.pdf) and **the evaluation website and submitting manual will be online shortly!**
+* FewRel 2.0: We found out that there are two long-neglected aspects in previous few-shot research: (1) How well models can transfer across different domains. (2) Can few-shot models detect instances belonging to none of the given few-shot classes. To dig deeper in these two aspects, we propose the 2.0 version of our dataset, with newly-added **domain adaptation (DA)** and **none-of-the-above (NOTA) detection** challenges. Find our more in our [paper](https://www.aclweb.org/anthology/D19-1649.pdf) and evaluation websites [FewRel 2.0 domain adaptation](https://thunlp.github.io/2/fewrel2_da.html) / [FewRel 2.0 none-of-the-above detection](https://thunlp.github.io/2/fewrel2_nota.html)
 
 ## Citing
 If you used our data, toolkits or baseline models, please kindly cite our paper:
