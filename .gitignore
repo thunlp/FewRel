@@ -28,3 +28,10 @@ data/pubmed.json
 
 # tmp file
 pretrain.tar
+
+# mac cache
+.DS_Store
+
+# editor cache
+.idea
+.vscode
