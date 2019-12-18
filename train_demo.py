@@ -136,7 +136,7 @@ def main():
     elif opt.optim == 'adam':
         pytorch_optim = optim.Adam
     elif opt.optim == 'bert_adam':
-        from pytorch_transformers import AdamW
+        from transformers import AdamW
         pytorch_optim = AdamW
     else:
         raise NotImplementedError
