@@ -48,7 +48,7 @@ def main():
     parser.add_argument('--model', default='proto',
             help='model name')
     parser.add_argument('--encoder', default='cnn',
-            help='encoder: cnn or bert')
+            help='encoder: cnn or bert or roberta')
     parser.add_argument('--max_length', default=128, type=int,
            help='max length')
     parser.add_argument('--lr', default=1e-1, type=float,
@@ -104,7 +104,7 @@ def main():
                 glove_word2id,
                 max_length)
     elif encoder_name == 'bert':
-        pretrain_ckpt = args.pretrain_ckpt or './pretrain/bert-base-uncased'
+        pretrain_ckpt = args.pretrain_ckpt or 'bert-base-uncased'
         if opt.pair:
             sentence_encoder = BERTPAIRSentenceEncoder(
                     pretrain_ckpt,
