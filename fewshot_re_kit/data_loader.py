@@ -117,7 +117,7 @@ class FewRelDatasetPair(data.Dataset):
     """
     FewRel Pair Dataset
     """
-    def __init__(self, name, encoder, N, K, Q, na_rate, root):
+    def __init__(self, name, encoder, N, K, Q, na_rate, root, encoder_name='bert'):
         self.root = root
         path = os.path.join(root, name + ".json")
         if not os.path.exists(path):
@@ -130,6 +130,7 @@ class FewRelDatasetPair(data.Dataset):
         self.Q = Q
         self.na_rate = na_rate
         self.encoder = encoder
+        self.encoder_name = encoder_name
         self.max_length = encoder.max_length
 
     def __getraw__(self, item):
@@ -184,10 +185,15 @@ class FewRelDatasetPair(data.Dataset):
 
         for word_query in query:
             for word_support in support:
-                SEP = self.encoder.tokenizer.convert_tokens_to_ids(['[SEP]'])
-                CLS = self.encoder.tokenizer.convert_tokens_to_ids(['[CLS]'])
+                if self.encoder_name == 'bert':
+                    SEP = self.encoder.tokenizer.convert_tokens_to_ids(['[SEP]'])
+                    CLS = self.encoder.tokenizer.convert_tokens_to_ids(['[CLS]'])
+                    word_tensor = torch.zeros((self.max_length)).long()
+                else:
+                    SEP = self.encoder.tokenizer.convert_tokens_to_ids(['</s>'])     
+                    CLS = self.encoder.tokenizer.convert_tokens_to_ids(['<s>'])
+                    word_tensor = torch.ones((self.max_length)).long()
                 new_word = CLS + word_support + SEP + word_query + SEP
-                word_tensor = torch.zeros((self.max_length)).long()
                 for i in range(min(self.max_length, len(new_word))):
                     word_tensor[i] = new_word[i]
                 mask_tensor = torch.zeros((self.max_length)).long()

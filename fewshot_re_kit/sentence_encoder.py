@@ -6,7 +6,7 @@ import numpy as np
 import os
 from torch import optim
 from . import network
-from transformers import BertTokenizer, BertModel, BertForMaskedLM, BertForSequenceClassification
+from transformers import BertTokenizer, BertModel, BertForMaskedLM, BertForSequenceClassification, RobertaModel, RobertaTokenizer, RobertaForSequenceClassification
 
 class CNNSentenceEncoder(nn.Module):
 
@@ -63,7 +63,7 @@ class BERTSentenceEncoder(nn.Module):
         nn.Module.__init__(self)
         self.bert = BertModel.from_pretrained(pretrain_path)
         self.max_length = max_length
-        self.tokenizer = BertTokenizer.from_pretrained(pretrain_path)
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
     def forward(self, inputs):
         _, x = self.bert(inputs['word'], attention_mask=inputs['mask'])
@@ -113,12 +113,11 @@ class BERTPAIRSentenceEncoder(nn.Module):
 
     def __init__(self, pretrain_path, max_length): 
         nn.Module.__init__(self)
-        # self.bert = BertModel.from_pretrained(pretrain_path)
         self.bert = BertForSequenceClassification.from_pretrained(
                 pretrain_path,
                 num_labels=2)
         self.max_length = max_length
-        self.tokenizer = BertTokenizer.from_pretrained(pretrain_path)
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
     def forward(self, inputs):
         x = self.bert(inputs['word'], token_type_ids=inputs['seg'], attention_mask=inputs['mask'])[0]
@@ -147,10 +146,84 @@ class BERTPAIRSentenceEncoder(nn.Module):
             cur_pos += 1
         indexed_tokens = self.tokenizer.convert_tokens_to_ids(tokens)
         
+        return indexed_tokens
+
+class RobertaSentenceEncoder(nn.Module):
+
+    def __init__(self, pretrain_path, max_length): 
+        nn.Module.__init__(self)
+        self.roberta = RobertaModel.from_pretrained(pretrain_path)
+        self.max_length = max_length
+        self.tokenizer = BertTokenizer.from_pretrained('roberta-base')
+
+    def forward(self, inputs):
+        _, x = self.bert(inputs['word'], attention_mask=inputs['mask'])
+        return x
+    
+    def tokenize(self, raw_tokens, pos_head, pos_tail):
+        def getIns(bped, bpeTokens, tokens, L, R):
+            resL = 0
+            tkL = " ".join(tokens[:L])
+            bped_tkL = " ".join(self.tokenizer.tokenize(tkL))
+            if bped.find(bped_tkL) == 0:
+                resL = len(bped_tkL.split())
+            else:
+                tkL += " "
+                bped_tkL = " ".join(self.tokenizer.tokenize(tkL))
+                if bped.find(bped_tkL) == 0:
+                    resL = len(bped_tkL.split())
+                else:
+                    raise Exception("Cannot locate the left position")
+            resR = 0
+            tkR = " ".join(tokens[R:])
+            bped_tkR = " ".join(self.tokenizer.tokenize(tkR))
+            if bped.rfind(bped_tkR) + len(bped_tkR) == len(bped):
+                resR = len(bpeTokens) - len(bped_tkR.split())
+            else:
+                tkR = " " + tkR
+                bped_tkR = " ".join(self.tokenizer.tokenize(tkR))
+                if bped.rfind(bped_tkR) + len(bped_tkR) == len(bped):
+                    resR = len(bpeTokens) - len(bped_tkR.split())
+                else:
+                    raise Exception("Cannot locate the right position")
+            return resL, resR
+
+        s = " ".join(raw_tokens)
+        sst = self.tokenizer.tokenize(s)
+        headL = pos_head[0]
+        headR = pos_head[-1] + 1
+        hiL, hiR = getIns(" ".join(sst), sst, raw_tokens, headL, headR)
+        tailL = pos_tail[0]
+        tailR = pos_tail[-1] + 1
+        tiL, tiR = getIns(" ".join(sst), sst, raw_tokens, tailL, tailR)
+        E1b = 'madeupword0000'
+        E1e = 'madeupword0001'
+        E2b = 'madeupword0002'
+        E2e = 'madeupword0003'
+        ins = [(hiL, E1b), (hiR, E1e), (tiL, E2b), (tiR, E2e)]
+        ins = sorted(ins)
+        pE1 = 0
+        pE2 = 0
+        pE1_ = 0
+        pE2_ = 0
+        for i in range(0, 4):
+            sst.insert(ins[i][0] + i, ins[i][1])
+            if ins[i][1] == E1b:
+                pE1 = ins[i][0] + i
+            elif ins[i][1] == E2b:
+                pE2 = ins[i][0] + i
+            elif ins[i][1] == E1e:
+                pE1_ = ins[i][0] + i
+            else:
+                pE2_ = ins[i][0] + i
+        pos1_in_index = pE1 + 1
+        pos2_in_index = pE2 + 1
+        sst = ['<s>'] + sst
+        indexed_tokens = self.tokenizer.convert_tokens_to_ids(sst)
+
         # padding
-        '''
         while len(indexed_tokens) < self.max_length:
-            indexed_tokens.append(0)
+            indexed_tokens.append(1)
         indexed_tokens = indexed_tokens[:self.max_length]
 
         # pos
@@ -162,7 +235,68 @@ class BERTPAIRSentenceEncoder(nn.Module):
 
         # mask
         mask = np.zeros((self.max_length), dtype=np.int32)
-        mask[:len(indexed_tokens)] = 1
-        '''
+        mask[:len(sst)] = 1
 
-        return indexed_tokens # , pos1, pos2, mask
+        return indexed_tokens, pos1, pos2, mask
+
+
+class RobertaPAIRSentenceEncoder(nn.Module):
+
+    def __init__(self, pretrain_path, max_length): 
+        nn.Module.__init__(self)
+        self.roberta = RobertaForSequenceClassification.from_pretrained(
+                pretrain_path,
+                num_labels=2)
+        self.max_length = max_length
+        self.tokenizer = BertTokenizer.from_pretrained('roberta-base')
+
+    def forward(self, inputs):
+        x = self.roberta(inputs['word'], token_type_ids=inputs['seg'], attention_mask=inputs['mask'])[0]
+        return x
+    
+    def tokenize(self, raw_tokens, pos_head, pos_tail):
+        def getIns(bped, bpeTokens, tokens, L, R):
+            resL = 0
+            tkL = " ".join(tokens[:L])
+            bped_tkL = " ".join(self.tokenizer.tokenize(tkL))
+            if bped.find(bped_tkL) == 0:
+                resL = len(bped_tkL.split())
+            else:
+                tkL += " "
+                bped_tkL = " ".join(self.tokenizer.tokenize(tkL))
+                if bped.find(bped_tkL) == 0:
+                    resL = len(bped_tkL.split())
+                else:
+                    raise Exception("Cannot locate the left position")
+            resR = 0
+            tkR = " ".join(tokens[R:])
+            bped_tkR = " ".join(self.tokenizer.tokenize(tkR))
+            if bped.rfind(bped_tkR) + len(bped_tkR) == len(bped):
+                resR = len(bpeTokens) - len(bped_tkR.split())
+            else:
+                tkR = " " + tkR
+                bped_tkR = " ".join(self.tokenizer.tokenize(tkR))
+                if bped.rfind(bped_tkR) + len(bped_tkR) == len(bped):
+                    resR = len(bpeTokens) - len(bped_tkR.split())
+                else:
+                    raise Exception("Cannot locate the right position")
+            return resL, resR
+
+        s = " ".join(raw_tokens)
+        sst = self.tokenizer.tokenize(s)
+        headL = pos_head[0]
+        headR = pos_head[-1] + 1
+        hiL, hiR = getIns(" ".join(sst), sst, raw_tokens, headL, headR)
+        tailL = pos_tail[0]
+        tailR = pos_tail[-1] + 1
+        tiL, tiR = getIns(" ".join(sst), sst, raw_tokens, tailL, tailR)
+        E1b = 'madeupword0000'
+        E1e = 'madeupword0001'
+        E2b = 'madeupword0002'
+        E2e = 'madeupword0003'
+        ins = [(hiL, E1b), (hiR, E1e), (tiL, E2b), (tiR, E2e)]
+        ins = sorted(ins)
+        for i in range(0, 4):
+            sst.insert(ins[i][0] + i, ins[i][1])
+        indexed_tokens = self.tokenizer.convert_tokens_to_ids(sst)
+        return indexed_tokens 

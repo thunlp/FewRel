@@ -1,6 +1,6 @@
 from fewshot_re_kit.data_loader import get_loader, get_loader_pair, get_loader_unsupervised
 from fewshot_re_kit.framework import FewShotREFramework
-from fewshot_re_kit.sentence_encoder import CNNSentenceEncoder, BERTSentenceEncoder, BERTPAIRSentenceEncoder
+from fewshot_re_kit.sentence_encoder import CNNSentenceEncoder, BERTSentenceEncoder, BERTPAIRSentenceEncoder, RobertaSentenceEncoder, RobertaPAIRSentenceEncoder
 import models
 from models.proto import Proto
 from models.gnn import GNN
@@ -62,7 +62,7 @@ def main():
     parser.add_argument('--grad_iter', default=1, type=int,
            help='accumulate gradient every x iterations')
     parser.add_argument('--optim', default='sgd',
-           help='sgd / adam / bert_adam')
+           help='sgd / adam / adamw')
     parser.add_argument('--hidden_size', default=230, type=int,
            help='hidden size')
     parser.add_argument('--load_ckpt', default=None,
@@ -75,6 +75,8 @@ def main():
            help='only test')
     parser.add_argument('--pair', action='store_true',
            help='use pair model')
+    parser.add_argument('--pretrain_ckpt', default=None,
+            help='bert / roberta pre-trained checkpoint')
 
     opt = parser.parse_args()
     trainN = opt.trainN
@@ -102,24 +104,35 @@ def main():
                 glove_word2id,
                 max_length)
     elif encoder_name == 'bert':
+        pretrain_ckpt = args.pretrain_ckpt or './pretrain/bert-base-uncased'
         if opt.pair:
             sentence_encoder = BERTPAIRSentenceEncoder(
-                    './pretrain/bert-base-uncased',
+                    pretrain_ckpt,
                     max_length)
         else:
             sentence_encoder = BERTSentenceEncoder(
-                    './pretrain/bert-base-uncased',
+                    pretrain_ckpt,
+                    max_length)
+    elif encoder_name == 'roberta':
+        pretrain_ckpt = args.pretrain_ckpt or 'roberta-base'
+        if opt.pair:
+            sentence_encoder = RobertaPAIRSentenceEncoder(
+                    pretrain_ckpt,
+                    max_length)
+        else:
+            sentence_encoder = RobertaSentenceEncoder(
+                    pretrain_ckpt,
                     max_length)
     else:
         raise NotImplementedError
     
     if opt.pair:
         train_data_loader = get_loader_pair(opt.train, sentence_encoder,
-                N=trainN, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
+                N=trainN, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size, encoder_name=encoder_name)
         val_data_loader = get_loader_pair(opt.val, sentence_encoder,
-                N=N, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
+                N=N, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size, encoder_name=encoder_name)
         test_data_loader = get_loader_pair(opt.test, sentence_encoder,
-                N=N, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
+                N=N, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size, encoder_name=encoder_name)
     else:
         train_data_loader = get_loader(opt.train, sentence_encoder,
                 N=trainN, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
@@ -135,7 +148,7 @@ def main():
         pytorch_optim = optim.SGD
     elif opt.optim == 'adam':
         pytorch_optim = optim.Adam
-    elif opt.optim == 'bert_adam':
+    elif opt.optim == 'adamw':
         from transformers import AdamW
         pytorch_optim = AdamW
     else:
