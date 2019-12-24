@@ -104,7 +104,7 @@ def main():
                 glove_word2id,
                 max_length)
     elif encoder_name == 'bert':
-        pretrain_ckpt = args.pretrain_ckpt or 'bert-base-uncased'
+        pretrain_ckpt = opt.pretrain_ckpt or 'bert-base-uncased'
         if opt.pair:
             sentence_encoder = BERTPAIRSentenceEncoder(
                     pretrain_ckpt,
@@ -114,7 +114,7 @@ def main():
                     pretrain_ckpt,
                     max_length)
     elif encoder_name == 'roberta':
-        pretrain_ckpt = args.pretrain_ckpt or 'roberta-base'
+        pretrain_ckpt = opt.pretrain_ckpt or 'roberta-base'
         if opt.pair:
             sentence_encoder = RobertaPAIRSentenceEncoder(
                     pretrain_ckpt,
@@ -191,7 +191,7 @@ def main():
         model.cuda()
 
     if not opt.only_test:
-        if encoder_name == 'bert':
+        if encoder_name in ['bert', 'roberta']:
             bert_optim = True
         else:
             bert_optim = False

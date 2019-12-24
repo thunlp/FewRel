@@ -154,14 +154,14 @@ class RobertaSentenceEncoder(nn.Module):
         nn.Module.__init__(self)
         self.roberta = RobertaModel.from_pretrained(pretrain_path)
         self.max_length = max_length
-        self.tokenizer = BertTokenizer.from_pretrained('roberta-base')
+        self.tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
 
     def forward(self, inputs):
         _, x = self.bert(inputs['word'], attention_mask=inputs['mask'])
         return x
     
     def tokenize(self, raw_tokens, pos_head, pos_tail):
-        def getIns(bped, bpeTokens, tokens, L, R):
+        def getIns(bped, bpeTokens, tokens, L):
             resL = 0
             tkL = " ".join(tokens[:L])
             bped_tkL = " ".join(self.tokenizer.tokenize(tkL))
@@ -173,29 +173,21 @@ class RobertaSentenceEncoder(nn.Module):
                 if bped.find(bped_tkL) == 0:
                     resL = len(bped_tkL.split())
                 else:
-                    raise Exception("Cannot locate the left position")
-            resR = 0
-            tkR = " ".join(tokens[R:])
-            bped_tkR = " ".join(self.tokenizer.tokenize(tkR))
-            if bped.rfind(bped_tkR) + len(bped_tkR) == len(bped):
-                resR = len(bpeTokens) - len(bped_tkR.split())
-            else:
-                tkR = " " + tkR
-                bped_tkR = " ".join(self.tokenizer.tokenize(tkR))
-                if bped.rfind(bped_tkR) + len(bped_tkR) == len(bped):
-                    resR = len(bpeTokens) - len(bped_tkR.split())
-                else:
-                    raise Exception("Cannot locate the right position")
-            return resL, resR
+                    raise Exception("Cannot locate the position")
+            return resL
 
         s = " ".join(raw_tokens)
         sst = self.tokenizer.tokenize(s)
         headL = pos_head[0]
         headR = pos_head[-1] + 1
-        hiL, hiR = getIns(" ".join(sst), sst, raw_tokens, headL, headR)
+        hiL = getIns(" ".join(sst), sst, raw_tokens, headL)
+        hiR = getIns(" ".join(sst), sst, raw_tokens, headR)
+
         tailL = pos_tail[0]
         tailR = pos_tail[-1] + 1
-        tiL, tiR = getIns(" ".join(sst), sst, raw_tokens, tailL, tailR)
+        tiL = getIns(" ".join(sst), sst, raw_tokens, tailL)
+        tiR = getIns(" ".join(sst), sst, raw_tokens, tailR)
+
         E1b = 'madeupword0000'
         E1e = 'madeupword0001'
         E2b = 'madeupword0002'
@@ -248,14 +240,14 @@ class RobertaPAIRSentenceEncoder(nn.Module):
                 pretrain_path,
                 num_labels=2)
         self.max_length = max_length
-        self.tokenizer = BertTokenizer.from_pretrained('roberta-base')
+        self.tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
 
     def forward(self, inputs):
-        x = self.roberta(inputs['word'], token_type_ids=inputs['seg'], attention_mask=inputs['mask'])[0]
+        x = self.roberta(inputs['word'], attention_mask=inputs['mask'])[0]
         return x
     
     def tokenize(self, raw_tokens, pos_head, pos_tail):
-        def getIns(bped, bpeTokens, tokens, L, R):
+        def getIns(bped, bpeTokens, tokens, L):
             resL = 0
             tkL = " ".join(tokens[:L])
             bped_tkL = " ".join(self.tokenizer.tokenize(tkL))
@@ -267,29 +259,21 @@ class RobertaPAIRSentenceEncoder(nn.Module):
                 if bped.find(bped_tkL) == 0:
                     resL = len(bped_tkL.split())
                 else:
-                    raise Exception("Cannot locate the left position")
-            resR = 0
-            tkR = " ".join(tokens[R:])
-            bped_tkR = " ".join(self.tokenizer.tokenize(tkR))
-            if bped.rfind(bped_tkR) + len(bped_tkR) == len(bped):
-                resR = len(bpeTokens) - len(bped_tkR.split())
-            else:
-                tkR = " " + tkR
-                bped_tkR = " ".join(self.tokenizer.tokenize(tkR))
-                if bped.rfind(bped_tkR) + len(bped_tkR) == len(bped):
-                    resR = len(bpeTokens) - len(bped_tkR.split())
-                else:
-                    raise Exception("Cannot locate the right position")
-            return resL, resR
+                    raise Exception("Cannot locate the position")
+            return resL
 
         s = " ".join(raw_tokens)
         sst = self.tokenizer.tokenize(s)
         headL = pos_head[0]
         headR = pos_head[-1] + 1
-        hiL, hiR = getIns(" ".join(sst), sst, raw_tokens, headL, headR)
+        hiL = getIns(" ".join(sst), sst, raw_tokens, headL)
+        hiR = getIns(" ".join(sst), sst, raw_tokens, headR)
+
         tailL = pos_tail[0]
         tailR = pos_tail[-1] + 1
-        tiL, tiR = getIns(" ".join(sst), sst, raw_tokens, tailL, tailR)
+        tiL = getIns(" ".join(sst), sst, raw_tokens, tailL)
+        tiR = getIns(" ".join(sst), sst, raw_tokens, tailR)
+
         E1b = 'madeupword0000'
         E1e = 'madeupword0001'
         E2b = 'madeupword0002'
