@@ -157,7 +157,7 @@ class RobertaSentenceEncoder(nn.Module):
         self.tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
 
     def forward(self, inputs):
-        _, x = self.bert(inputs['word'], attention_mask=inputs['mask'])
+        _, x = self.roberta(inputs['word'], attention_mask=inputs['mask'])
         return x
     
     def tokenize(self, raw_tokens, pos_head, pos_tail):
