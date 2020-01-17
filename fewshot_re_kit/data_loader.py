@@ -117,7 +117,7 @@ class FewRelDatasetPair(data.Dataset):
     """
     FewRel Pair Dataset
     """
-    def __init__(self, name, encoder, N, K, Q, na_rate, root, encoder_name='bert'):
+    def __init__(self, name, encoder, N, K, Q, na_rate, root, encoder_name):
         self.root = root
         path = os.path.join(root, name + ".json")
         if not os.path.exists(path):
@@ -182,7 +182,6 @@ class FewRelDatasetPair(data.Dataset):
             query.append(word)
         query_label += [self.N] * Q_na
 
-
         for word_query in query:
             for word_support in support:
                 if self.encoder_name == 'bert':
@@ -223,8 +222,8 @@ def collate_fn_pair(data):
     return batch_set, batch_label
 
 def get_loader_pair(name, encoder, N, K, Q, batch_size, 
-        num_workers=8, collate_fn=collate_fn_pair, na_rate=0, root='./data'):
-    dataset = FewRelDatasetPair(name, encoder, N, K, Q, na_rate, root)
+        num_workers=8, collate_fn=collate_fn_pair, na_rate=0, root='./data', encoder_name='bert'):
+    dataset = FewRelDatasetPair(name, encoder, N, K, Q, na_rate, root, encoder_name)
     data_loader = data.DataLoader(dataset=dataset,
             batch_size=batch_size,
             shuffle=False,

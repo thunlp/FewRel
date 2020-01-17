@@ -191,7 +191,7 @@ def main():
         model.cuda()
 
     if not opt.only_test:
-        if encoder_name == 'bert':
+        if encoder_name in ['bert', 'roberta']:
             bert_optim = True
         else:
             bert_optim = False
