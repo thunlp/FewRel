@@ -168,10 +168,9 @@ def main():
     if model_name == 'proto':
         model = Proto(sentence_encoder, hidden_size=opt.hidden_size)
     elif model_name == 'gnn':
-        model = GNN(sentence_encoder, N)
+        model = GNN(sentence_encoder, N, hidden_size=opt.hidden_size)
     elif model_name == 'snail':
-        print("HINT: SNAIL works only in PyTorch 0.3.1")
-        model = SNAIL(sentence_encoder, N, K)
+        model = SNAIL(sentence_encoder, N, K, hidden_size=opt.hidden_size)
     elif model_name == 'metanet':
         model = MetaNet(N, K, sentence_encoder.embedding, max_length)
     elif model_name == 'siamese':

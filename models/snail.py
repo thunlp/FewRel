@@ -108,18 +108,17 @@ class SNAIL(fewshot_re_kit.framework.FewShotREModel):
         self.tc2 = TCBlock(self.att1.dim, 128, self.seq_len)
         self.att2 = AttentionBlock(self.tc2.dim, 512, 256, self.seq_len)
         self.disc = nn.Linear(self.att2.dim, N, bias=False)
-        self.bn1 = nn.BatchNorm2d(self.tc1.dim)
-        self.bn2 = nn.BatchNorm2d(self.tc2.dim)
+        self.bn1 = nn.BatchNorm1d(self.tc1.dim)
+        self.bn2 = nn.BatchNorm1d(self.tc2.dim)
 
-    def forward(self, support, query, N, K, Q):
+    def forward(self, support, query, N, K, NQ):
         support = self.sentence_encoder(support) # (B * N * K, D), where D is the hidden size
         query = self.sentence_encoder(query) # (B * N * Q, D)
         # support = self.drop(support)
         # query = self.drop(query)
         support = support.view(-1, N, K, self.hidden_size) # (B, N, K, D)
-        query = query.view(-1, N * Q, self.hidden_size) # (B, N * Q, D)
+        query = query.view(-1, NQ, self.hidden_size) # (B, N * Q, D)
         B = support.size(0) # Batch size
-        NQ = query.size(1) # Num of instances for each batch in the query set
 
         support = support.unsqueeze(1).expand(-1, NQ, -1, -1, -1).contiguous().view(-1, N * K, self.hidden_size) # (B * NQ, N * K, D)
         query = query.view(-1, 1, self.hidden_size) # (B * NQ, 1, D)

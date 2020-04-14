@@ -18,7 +18,7 @@ class GNN(fewshot_re_kit.framework.FewShotREModel):
         self.node_dim = hidden_size + N
         self.gnn_obj = gnn_iclr.GNN_nl(N, self.node_dim, nf=96, J=1)
 
-    def forward(self, support, query, N, K, Q):
+    def forward(self, support, query, N, K, NQ):
         '''
         support: Inputs of the support set.
         query: Inputs of the query set.
@@ -29,10 +29,9 @@ class GNN(fewshot_re_kit.framework.FewShotREModel):
         support = self.sentence_encoder(support)
         query = self.sentence_encoder(query)
         support = support.view(-1, N, K, self.hidden_size)
-        query = query.view(-1, N * Q, self.hidden_size)
+        query = query.view(-1, NQ, self.hidden_size)
 
         B = support.size(0)
-        NQ = query.size(1)
         D = self.hidden_size
 
         support = support.unsqueeze(1).expand(-1, NQ, -1, -1, -1).contiguous().view(-1, N * K, D) # (B * NQ, N * K, D)
