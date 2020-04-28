@@ -59,22 +59,31 @@ class CNNSentenceEncoder(nn.Module):
 
 class BERTSentenceEncoder(nn.Module):
 
-    def __init__(self, pretrain_path, max_length): 
+    def __init__(self, pretrain_path, max_length, cat_entity_rep=False): 
         nn.Module.__init__(self)
         self.bert = BertModel.from_pretrained(pretrain_path)
         self.max_length = max_length
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.cat_entity_rep = cat_entity_rep
 
     def forward(self, inputs):
-        _, x = self.bert(inputs['word'], attention_mask=inputs['mask'])
-        return x
+        if not self.cat_entity_rep:
+            _, x = self.bert(inputs['word'], attention_mask=inputs['mask'])
+            return x
+        else:
+            outputs = self.bert(inputs['word'], attention_mask=inputs['mask'])
+            tensor_range = torch.arange(inputs['word'].size()[0])
+            h_state = outputs[0][tensor_range, inputs["pos1"]]
+            t_state = outputs[0][tensor_range, inputs["pos2"]]
+            state = torch.cat((h_state, t_state), -1)
+            return state
     
     def tokenize(self, raw_tokens, pos_head, pos_tail):
         # token -> index
         tokens = ['[CLS]']
         cur_pos = 0
-        pos1_in_index = 0
-        pos2_in_index = 0
+        pos1_in_index = 1
+        pos2_in_index = 1
         for token in raw_tokens:
             token = token.lower()
             if cur_pos == pos_head[0]:
@@ -107,7 +116,10 @@ class BERTSentenceEncoder(nn.Module):
         mask = np.zeros((self.max_length), dtype=np.int32)
         mask[:len(tokens)] = 1
 
-        return indexed_tokens, pos1, pos2, mask
+        pos1_in_index = min(self.max_length, pos1_in_index)
+        pos2_in_index = min(self.max_length, pos2_in_index)
+
+        return indexed_tokens, pos1_in_index - 1, pos2_in_index - 1, mask
 
 class BERTPAIRSentenceEncoder(nn.Module):
 
@@ -150,15 +162,25 @@ class BERTPAIRSentenceEncoder(nn.Module):
 
 class RobertaSentenceEncoder(nn.Module):
 
-    def __init__(self, pretrain_path, max_length): 
+    def __init__(self, pretrain_path, max_length, cat_entity_rep=False): 
         nn.Module.__init__(self)
         self.roberta = RobertaModel.from_pretrained(pretrain_path)
         self.max_length = max_length
         self.tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
+        self.cat_entity_rep = cat_entity_rep
 
     def forward(self, inputs):
-        _, x = self.roberta(inputs['word'], attention_mask=inputs['mask'])
-        return x
+        if not self.cat_entity_rep:
+            _, x = self.roberta(inputs['word'], attention_mask=inputs['mask'])
+            return x
+        else:
+            outputs = self.roberta(inputs['word'], attention_mask=inputs['mask'])
+            tensor_range = torch.arange(inputs['word'].size()[0])
+            h_state = outputs[0][tensor_range, inputs["pos1"]]
+            t_state = outputs[0][tensor_range, inputs["pos2"]]
+            state = torch.cat((h_state, t_state), -1)
+            return state
+
     
     def tokenize(self, raw_tokens, pos_head, pos_tail):
         def getIns(bped, bpeTokens, tokens, L):
@@ -229,7 +251,10 @@ class RobertaSentenceEncoder(nn.Module):
         mask = np.zeros((self.max_length), dtype=np.int32)
         mask[:len(sst)] = 1
 
-        return indexed_tokens, pos1, pos2, mask
+        pos1_in_index = min(self.max_length, pos1_in_index)
+        pos2_in_index = min(self.max_length, pos2_in_index)
+
+        return indexed_tokens, pos1_in_index - 1, pos2_in_index - 1, mask
 
 
 class RobertaPAIRSentenceEncoder(nn.Module):

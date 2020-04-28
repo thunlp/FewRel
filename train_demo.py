@@ -73,10 +73,19 @@ def main():
            help='use nvidia apex fp16')
     parser.add_argument('--only_test', action='store_true',
            help='only test')
+
+    # only for bert / roberta
     parser.add_argument('--pair', action='store_true',
            help='use pair model')
     parser.add_argument('--pretrain_ckpt', default=None,
-            help='bert / roberta pre-trained checkpoint')
+           help='bert / roberta pre-trained checkpoint')
+    parser.add_argument('--cat_entity_rep', action='store_true',
+           help='concatenate entity representation as sentence rep')
+
+    # only for prototypical networks
+    parser.add_argument('--dot', action='store_true', 
+           help='use dot instead of L2 distance for proto')
+
 
     opt = parser.parse_args()
     trainN = opt.trainN
@@ -112,7 +121,8 @@ def main():
         else:
             sentence_encoder = BERTSentenceEncoder(
                     pretrain_ckpt,
-                    max_length)
+                    max_length,
+                    cat_entity_rep=opt.cat_entity_rep)
     elif encoder_name == 'roberta':
         pretrain_ckpt = opt.pretrain_ckpt or 'roberta-base'
         if opt.pair:
@@ -122,7 +132,8 @@ def main():
         else:
             sentence_encoder = RobertaSentenceEncoder(
                     pretrain_ckpt,
-                    max_length)
+                    max_length,
+                    cat_entity_rep=opt.cat_entity_rep)
     else:
         raise NotImplementedError
     
@@ -164,9 +175,13 @@ def main():
         prefix += '-adv_' + opt.adv
     if opt.na_rate != 0:
         prefix += '-na{}'.format(opt.na_rate)
+    if opt.dot:
+        prefix += '-dot'
+    if opt.cat_entity_rep:
+        prefix += '-catentity'
     
     if model_name == 'proto':
-        model = Proto(sentence_encoder, hidden_size=opt.hidden_size)
+        model = Proto(sentence_encoder, dot=opt.dot)
     elif model_name == 'gnn':
         model = GNN(sentence_encoder, N, hidden_size=opt.hidden_size)
     elif model_name == 'snail':
