@@ -51,6 +51,8 @@ Xu Han, Hao Zhu, Pengfei Yu and Ziyun Wang implemented baselines and wrote the p
 
 The dataset has already be contained in the github repo. However, due to the large size, glove files (pre-trained word embeddings) and BERT pretrain checkpoint are not included. Please download `pretrain.tar` from [Tsinghua Cloud](https://cloud.tsinghua.edu.cn/f/58f57bda00eb40be8d10/?dl=1) and put it under the root. Then run `tar xvf pretrain.tar` to decompress it.
 
+We also provide [pid2name.json](https://github.com/thunlp/FewRel/blob/master/data/pid2name.json) to show the Wikidata PID, name and description for each relation. 
+
 **Note: We did not release the test dataset for both FewRel 1.0 and 2.0 for fair comparison. We recommend you to evaluate your models on the validation set first, and then submit it to our evaluation websites (which you can find above).** 
 
 ## Usage
