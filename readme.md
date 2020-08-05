@@ -104,6 +104,20 @@ Note that `--fp16` requires Nvidia's [apex](https://github.com/NVIDIA/apex).
 | Val               | 85.66 | 89.48 | 76.84 | 81.76 |
 | Test              | 88.32 | 93.22 | 80.63 | 87.02 |
 
+**BERT-PAIR for Domain Adaptation (FewRel 2.0)**
+
+```bash
+python train_demo.py \
+    --trainN 5 --N 5 --K 1 --Q 1 \
+    --model pair --encoder bert --pair --hidden_size 768 --val_step 1000 \
+    --batch_size 4  --fp16 --val val_pubmed --test val_pubmed \
+```
+
+|                   | 5 way 1 shot | 5 way 5 shot | 10 way 1 shot | 10 way 5 shot |
+|  ---------------  | -----------  | ------------- | ------------ | ------------- |
+| Val               | 70.70 | 80.59 | 59.52 | 70.30 |
+| Test              | 67.41	| 78.57 | 54.89	| 66.85 |
+
 **BERT-PAIR for None-of-the-Above (FewRel 2.0)**
 
 ```bash
