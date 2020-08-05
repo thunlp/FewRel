@@ -85,7 +85,10 @@ def main():
     # only for prototypical networks
     parser.add_argument('--dot', action='store_true', 
            help='use dot instead of L2 distance for proto')
-
+    
+    # experiment
+    parser.add_argument('--mask_entity', action='store_true',
+           help='mask entity names')
 
     opt = parser.parse_args()
     trainN = opt.trainN
@@ -122,7 +125,8 @@ def main():
             sentence_encoder = BERTSentenceEncoder(
                     pretrain_ckpt,
                     max_length,
-                    cat_entity_rep=opt.cat_entity_rep)
+                    cat_entity_rep=opt.cat_entity_rep,
+                    mask_entity=opt.mask_entity)
     elif encoder_name == 'roberta':
         pretrain_ckpt = opt.pretrain_ckpt or 'roberta-base'
         if opt.pair:
@@ -216,6 +220,9 @@ def main():
                 train_iter=opt.train_iter, val_iter=opt.val_iter, bert_optim=bert_optim)
     else:
         ckpt = opt.load_ckpt
+        if ckpt is None:
+            print("Warning: --load_ckpt is not specified. Will load Hugginface pre-trained checkpoint.")
+            ckpt = 'none'
 
     acc = framework.eval(model, batch_size, N, K, Q, opt.test_iter, na_rate=opt.na_rate, ckpt=ckpt, pair=opt.pair)
     print("RESULT: %.2f" % (acc * 100))

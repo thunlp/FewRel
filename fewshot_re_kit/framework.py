@@ -309,14 +309,17 @@ class FewShotREFramework:
         
         model.eval()
         if ckpt is None:
+            print("Use val dataset")
             eval_dataset = self.val_data_loader
         else:
-            state_dict = self.__load_model__(ckpt)['state_dict']
-            own_state = model.state_dict()
-            for name, param in state_dict.items():
-                if name not in own_state:
-                    continue
-                own_state[name].copy_(param)
+            print("Use test dataset")
+            if ckpt != 'none':
+                state_dict = self.__load_model__(ckpt)['state_dict']
+                own_state = model.state_dict()
+                for name, param in state_dict.items():
+                    if name not in own_state:
+                        continue
+                    own_state[name].copy_(param)
             eval_dataset = self.test_data_loader
 
         iter_right = 0.0

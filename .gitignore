@@ -35,3 +35,4 @@ pretrain.tar
 # editor cache
 .idea
 .vscode
+.venv

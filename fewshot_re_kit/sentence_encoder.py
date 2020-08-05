@@ -59,12 +59,13 @@ class CNNSentenceEncoder(nn.Module):
 
 class BERTSentenceEncoder(nn.Module):
 
-    def __init__(self, pretrain_path, max_length, cat_entity_rep=False): 
+    def __init__(self, pretrain_path, max_length, cat_entity_rep=False, mask_entity=False): 
         nn.Module.__init__(self)
         self.bert = BertModel.from_pretrained(pretrain_path)
         self.max_length = max_length
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         self.cat_entity_rep = cat_entity_rep
+        self.mask_entity = mask_entity
 
     def forward(self, inputs):
         if not self.cat_entity_rep:
@@ -92,7 +93,10 @@ class BERTSentenceEncoder(nn.Module):
             if cur_pos == pos_tail[0]:
                 tokens.append('[unused1]')
                 pos2_in_index = len(tokens)
-            tokens += self.tokenizer.tokenize(token)
+            if self.mask_entity and ((pos_head[0] <= cur_pos and cur_pos <= pos_head[-1]) or (pos_tail[0] <= cur_pos and cur_pos <= pos_tail[-1])):
+                tokens += ['[unused4]']
+            else:
+                tokens += self.tokenizer.tokenize(token)
             if cur_pos == pos_head[-1]:
                 tokens.append('[unused2]')
             if cur_pos == pos_tail[-1]:
