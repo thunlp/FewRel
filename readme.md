@@ -51,11 +51,11 @@ Xu Han, Hao Zhu, Pengfei Yu and Ziyun Wang implemented baselines and wrote the p
 
 The dataset has already be contained in the github repo. However, due to the large size, glove files (pre-trained word embeddings) and BERT pretrain checkpoint are not included. Please download `pretrain.tar` from [Tsinghua Cloud](https://cloud.tsinghua.edu.cn/f/58f57bda00eb40be8d10/?dl=1) and put it under the root. Then run `tar xvf pretrain.tar` to decompress it.
 
+We also provide [pid2name.json](https://github.com/thunlp/FewRel/blob/master/data/pid2name.json) to show the Wikidata PID, name and description for each relation. 
+
 **Note: We did not release the test dataset for both FewRel 1.0 and 2.0 for fair comparison. We recommend you to evaluate your models on the validation set first, and then submit it to our evaluation websites (which you can find above).** 
 
-## Usage
-
-**To help you get started more easily, we are now writing a manual for training and evaluating few-shot models. The manual will be released soon here.**
+## Training a Model
 
 To run our baseline models, use command
 
@@ -75,6 +75,16 @@ This will start the training and evaluating process of Prototypical Networks in 
 * `na_rate`: NA rate for FewRel 2.0 none-of-the-above (NOTA) detection. Note that here `na_rate` specifies the rate between Q for NOTA and Q for positive. For example, `na_rate=0` means the normal setting, `na_rate=1,2,5` corresponds to NA rate = 15%, 30% and 50% in 5-way settings.
 
 There are also many args for training (like `batch_size` and `lr`) and you can find more details in our codes.
+
+## Inference
+
+You can evaluate an existing checkpoint by
+
+```bash
+python train_demo.py --only_test --load_ckpt {CHECKPOINT_PATH} {OTHER_ARGS}
+```
+
+Here we provide a BERT-PAIR [checkpoint](https://thunlp.oss-cn-qingdao.aliyuncs.com/fewrel/pair-bert-train_wiki-val_wiki-5-1.pth.tar) (trained on FewRel 1.0 dataset, 5 way 1 shot).
 
 ## Reproduction
 

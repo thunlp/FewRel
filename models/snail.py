@@ -102,7 +102,7 @@ class SNAIL(fewshot_re_kit.framework.FewShotREModel):
         self.hidden_size = hidden_size
         self.drop = nn.Dropout()
         self.seq_len = N * K + 1
-        self.att0 = AttentionBlock(hidden_size, 64, 32, self.seq_len)
+        self.att0 = AttentionBlock(hidden_size + N, 64, 32, self.seq_len)
         self.tc1 = TCBlock(self.att0.dim, 128, self.seq_len)
         self.att1 = AttentionBlock(self.tc1.dim, 256, 128, self.seq_len)
         self.tc2 = TCBlock(self.att1.dim, 128, self.seq_len)
@@ -123,6 +123,11 @@ class SNAIL(fewshot_re_kit.framework.FewShotREModel):
         support = support.unsqueeze(1).expand(-1, NQ, -1, -1, -1).contiguous().view(-1, N * K, self.hidden_size) # (B * NQ, N * K, D)
         query = query.view(-1, 1, self.hidden_size) # (B * NQ, 1, D)
         minibatch = torch.cat([support, query], 1)
+        labels = torch.zeros((B * NQ, N * K + 1, N)).float().cuda() 
+        minibatch = torch.cat((minibatch, labels), 2)
+        for i in range(N):
+            for j in range(K):
+                minibatch[:, i * K + j, i] = 1
 
         x = self.att0(minibatch, self.seq_len).transpose(1, 2)
         #x = self.bn1(x).transpose(1, 2)
