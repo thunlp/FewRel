@@ -156,7 +156,7 @@ def main():
         test_data_loader = get_loader(opt.test, sentence_encoder,
                 N=N, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
         if opt.adv:
-           adv_data_loader = get_loader_unsupervised(opt.adv, sentence_encoder,
+            adv_data_loader = get_loader_unsupervised(opt.adv, sentence_encoder,
                 N=trainN, K=K, Q=Q, na_rate=opt.na_rate, batch_size=batch_size)
    
     if opt.optim == 'sgd':
