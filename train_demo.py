@@ -9,6 +9,7 @@ from models.metanet import MetaNet
 from models.siamese import Siamese
 from models.pair import Pair
 from models.d import Discriminator
+from models.mtb import Mtb
 import sys
 import torch
 from torch import optim, nn
@@ -51,7 +52,7 @@ def main():
             help='encoder: cnn or bert or roberta')
     parser.add_argument('--max_length', default=128, type=int,
            help='max length')
-    parser.add_argument('--lr', default=1e-1, type=float,
+    parser.add_argument('--lr', default=-1, type=float,
            help='learning rate')
     parser.add_argument('--weight_decay', default=1e-5, type=float,
            help='weight decay')
@@ -73,6 +74,9 @@ def main():
            help='use nvidia apex fp16')
     parser.add_argument('--only_test', action='store_true',
            help='only test')
+    parser.add_argument('--ckpt_name', type=str, default='',
+           help='checkpoint name.')
+
 
     # only for bert / roberta
     parser.add_argument('--pair', action='store_true',
@@ -85,10 +89,16 @@ def main():
     # only for prototypical networks
     parser.add_argument('--dot', action='store_true', 
            help='use dot instead of L2 distance for proto')
+
+    # only for mtb
+    parser.add_argument('--no_dropout', action='store_true',
+           help='do not use dropout after BERT (still has dropout in BERT).')
     
     # experiment
     parser.add_argument('--mask_entity', action='store_true',
            help='mask entity names')
+    parser.add_argument('--use_sgd_for_bert', action='store_true',
+           help='use SGD instead of AdamW for BERT.')
 
     opt = parser.parse_args()
     trainN = opt.trainN
@@ -183,6 +193,8 @@ def main():
         prefix += '-dot'
     if opt.cat_entity_rep:
         prefix += '-catentity'
+    if len(opt.ckpt_name) > 0:
+        prefix += '-' + opt.ckpt_name
     
     if model_name == 'proto':
         model = Proto(sentence_encoder, dot=opt.dot)
@@ -196,6 +208,8 @@ def main():
         model = Siamese(sentence_encoder, hidden_size=opt.hidden_size, dropout=opt.dropout)
     elif model_name == 'pair':
         model = Pair(sentence_encoder, hidden_size=opt.hidden_size)
+    elif model_name == 'mtb':
+        model = Mtb(sentence_encoder, use_dropout=not opt.no_dropout)
     else:
         raise NotImplementedError
     
@@ -214,10 +228,17 @@ def main():
         else:
             bert_optim = False
 
+        if opt.lr == -1:
+            if bert_optim:
+                opt.lr = 2e-5
+            else:
+                opt.lr = 1e-1
+
         framework.train(model, prefix, batch_size, trainN, N, K, Q,
                 pytorch_optim=pytorch_optim, load_ckpt=opt.load_ckpt, save_ckpt=ckpt,
                 na_rate=opt.na_rate, val_step=opt.val_step, fp16=opt.fp16, pair=opt.pair, 
-                train_iter=opt.train_iter, val_iter=opt.val_iter, bert_optim=bert_optim)
+                train_iter=opt.train_iter, val_iter=opt.val_iter, bert_optim=bert_optim, 
+                learning_rate=opt.lr, use_sgd_for_bert=opt.use_sgd_for_bert)
     else:
         ckpt = opt.load_ckpt
         if ckpt is None:

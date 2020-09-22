@@ -26,7 +26,7 @@ class Pair(fewshot_re_kit.framework.FewShotREModel):
         logits = logits.view(-1, total_Q, N, K, 2)
         logits = logits.mean(3) # (-1, total_Q, N, 2)
         logits_na, _ = logits[:, :, :, 0].min(2, keepdim=True) # (-1, totalQ, 1)
-        logits = logits[:, : , :, 1] # (-1, total_Q, N)
+        logits = logits[:, :, :, 1] # (-1, total_Q, N)
         logits = torch.cat([logits, logits_na], 2) # (B, total_Q, N + 1)
-        _, pred = torch.max(logits.view(-1, N+1), 1)
+        _, pred = torch.max(logits.view(-1, N + 1), 1)
         return logits, pred

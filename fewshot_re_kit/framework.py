@@ -19,14 +19,14 @@ def warmup_linear(global_step, warmup_step):
         return 1.0
 
 class FewShotREModel(nn.Module):
-    def __init__(self, sentence_encoder):
+    def __init__(self, my_sentence_encoder):
         '''
         sentence_encoder: Sentence encoder
         
         You need to set self.cost as your own loss function.
         '''
         nn.Module.__init__(self)
-        self.sentence_encoder = nn.DataParallel(sentence_encoder)
+        self.sentence_encoder = nn.DataParallel(my_sentence_encoder)
         self.cost = nn.CrossEntropyLoss()
     
     def forward(self, support, query, N, K, Q):
@@ -119,7 +119,8 @@ class FewShotREFramework:
               fp16=False,
               pair=False,
               adv_dis_lr=1e-1,
-              adv_enc_lr=1e-1):
+              adv_enc_lr=1e-1,
+              use_sgd_for_bert=False):
         '''
         model: a FewShotREModel instance
         model_name: Name of the model
@@ -148,8 +149,11 @@ class FewShotREFramework:
                     if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
                 {'params': [p for n, p in parameters_to_optimize
                     if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
-                ]
-            optimizer = AdamW(parameters_to_optimize, lr=2e-5, correct_bias=False)
+            ]
+            if use_sgd_for_bert:
+                optimizer = torch.optim.SGD(parameters_to_optimize, lr=learning_rate)
+            else:
+                optimizer = AdamW(parameters_to_optimize, lr=learning_rate, correct_bias=False)
             if self.adv:
                 optimizer_encoder = AdamW(parameters_to_optimize, lr=1e-5, correct_bias=False)
             scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=warmup_step, num_training_steps=train_iter) 
@@ -184,7 +188,6 @@ class FewShotREFramework:
 
         # Training
         best_acc = 0
-        not_best_count = 0 # Stop training after several epochs without improvement.
         iter_loss = 0.0
         iter_loss_dis = 0.0
         iter_right = 0.0
@@ -208,7 +211,7 @@ class FewShotREFramework:
                         query[k] = query[k].cuda()
                     label = label.cuda()
 
-                logits, pred  = model(support, query, 
+                logits, pred = model(support, query, 
                         N_for_train, K, Q * N_for_train + na_rate * Q)
             loss = model.loss(logits, label) / float(grad_iter)
             right = model.accuracy(pred, label)
@@ -236,8 +239,8 @@ class FewShotREFramework:
                 features_adv = model.sentence_encoder(support_adv)
                 features = torch.cat([features_ori, features_adv], 0) 
                 total = features.size(0)
-                dis_labels = torch.cat([torch.zeros((total//2)).long().cuda(),
-                    torch.ones((total//2)).long().cuda()], 0)
+                dis_labels = torch.cat([torch.zeros((total // 2)).long().cuda(),
+                    torch.ones((total // 2)).long().cuda()], 0)
                 dis_logits = self.d(features)
                 loss_dis = self.adv_cost(dis_logits, dis_labels)
                 _, pred = dis_logits.max(-1)
@@ -266,9 +269,9 @@ class FewShotREFramework:
                     .format(it + 1, iter_loss / iter_sample, 
                         100 * iter_right / iter_sample,
                         iter_loss_dis / iter_sample,
-                        100 * iter_right_dis / iter_sample) +'\r')
+                        100 * iter_right_dis / iter_sample) + '\r')
             else:
-                sys.stdout.write('step: {0:4} | loss: {1:2.6f}, accuracy: {2:3.2f}%'.format(it + 1, iter_loss / iter_sample, 100 * iter_right / iter_sample) +'\r')
+                sys.stdout.write('step: {0:4} | loss: {1:2.6f}, accuracy: {2:3.2f}%'.format(it + 1, iter_loss / iter_sample, 100 * iter_right / iter_sample) + '\r')
             sys.stdout.flush()
 
             if (it + 1) % val_step == 0:
@@ -347,7 +350,7 @@ class FewShotREFramework:
                 iter_right += self.item(right.data)
                 iter_sample += 1
 
-                sys.stdout.write('[EVAL] step: {0:4} | accuracy: {1:3.2f}%'.format(it + 1, 100 * iter_right / iter_sample) +'\r')
+                sys.stdout.write('[EVAL] step: {0:4} | accuracy: {1:3.2f}%'.format(it + 1, 100 * iter_right / iter_sample) + '\r')
                 sys.stdout.flush()
             print("")
         return iter_right / iter_sample
