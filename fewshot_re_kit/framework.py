@@ -172,7 +172,9 @@ class FewShotREFramework:
             own_state = model.state_dict()
             for name, param in state_dict.items():
                 if name not in own_state:
+                    print('ignore {}'.format(name))
                     continue
+                print('load {} from {}'.format(name, load_ckpt))
                 own_state[name].copy_(param)
             start_iter = 0
         else:
