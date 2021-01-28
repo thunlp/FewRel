@@ -258,7 +258,7 @@ class RobertaSentenceEncoder(nn.Module):
         pos1_in_index = min(self.max_length, pos1_in_index)
         pos2_in_index = min(self.max_length, pos2_in_index)
 
-        return indexed_tokens, pos1_in_index - 1, pos2_in_index - 1, mask
+        return indexed_tokens, pos1_in_index, pos2_in_index, mask
 
 
 class RobertaPAIRSentenceEncoder(nn.Module):
