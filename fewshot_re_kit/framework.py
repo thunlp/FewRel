@@ -223,7 +223,7 @@ class FewShotREFramework:
                 # torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), 10)
             else:
                 loss.backward()
-                # torch.nn.utils.clip_grad_norm_(model.parameters(), 10)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 10)
             
             if it % grad_iter == 0:
                 optimizer.step()
