@@ -233,12 +233,13 @@ def main():
                 opt.lr = 2e-5
             else:
                 opt.lr = 1e-1
-
+        
+        opt.train_iter = opt.train_iter * opt.grad_iter
         framework.train(model, prefix, batch_size, trainN, N, K, Q,
                 pytorch_optim=pytorch_optim, load_ckpt=opt.load_ckpt, save_ckpt=ckpt,
                 na_rate=opt.na_rate, val_step=opt.val_step, fp16=opt.fp16, pair=opt.pair, 
                 train_iter=opt.train_iter, val_iter=opt.val_iter, bert_optim=bert_optim, 
-                learning_rate=opt.lr, use_sgd_for_bert=opt.use_sgd_for_bert)
+                learning_rate=opt.lr, use_sgd_for_bert=opt.use_sgd_for_bert, grad_iter=opt.grad_iter)
     else:
         ckpt = opt.load_ckpt
         if ckpt is None:
