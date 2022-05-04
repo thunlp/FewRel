@@ -49,7 +49,7 @@ Xu Han, Hao Zhu, Pengfei Yu and Ziyun Wang implemented baselines and wrote the p
 
 ## Dataset and Pretrain files
 
-The dataset has already be contained in the github repo. However, due to the large size, glove files (pre-trained word embeddings) and BERT pretrain checkpoint are not included. Please download `pretrain.tar` from [Tsinghua Cloud](https://cloud.tsinghua.edu.cn/f/58f57bda00eb40be8d10/?dl=1) and put it under the root. Then run `tar xvf pretrain.tar` to decompress it.
+The dataset has already be contained in the github repo. However, due to the large size, glove files (pre-trained word embeddings) and BERT pretrain checkpoint are not included. Please use the script `download_pretrain.sh` to download these pretrain files.
 
 We also provide [pid2name.json](https://github.com/thunlp/FewRel/blob/master/data/pid2name.json) to show the Wikidata PID, name and description for each relation. 
 
